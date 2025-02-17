@@ -1,31 +1,186 @@
-# Справка по репо
+<p align="center">
+    <img id="dynamicImage" src="None" align="center" width="20%" style="display: none;">
+</p>
+<p align="center"><h1 align="center">LASERWELDMONITOR</h1></p>
+<p align="center">
+	<a href="https://itmo.ru/"><img src="https://raw.githubusercontent.com/aimclub/open-source-ops/43bb283758b43d75ec1df0a6bb4ae3eb20066323/badges/ITMO_badge.svg"></a>
+	<img src="https://img.shields.io/github/license/ILT-ITMO/LaserWeldMonitor?style=BadgeStyleOptions.DEFAULT&logo=opensourceinitiative&logoColor=white&color=blue" alt="license">
+	<a href="https://github.com/ITMO-NSS-team/Open-Source-Advisor"><img src="https://img.shields.io/badge/improved%20by-OSA-blue"></a>
+</p>
+<p align="center">Built with the tools and technologies:</p>
+<p align="center">
+	<img src="https://img.shields.io/badge/Python-3776AB.svg?style=BadgeStyleOptions.DEFAULT&logo=Python&logoColor=white"alt="Python">
+</p>
+<br>
 
-Я создал пока три основных направления работ, ведущихся в проекте. Я предполагаю, что при возможном скрещивании подходов будет удобно производить импорты необходимых модулей, и структура проекта будет довольно удобной. Так как скорее всего основные запускаемые файлы будут расположены в корне репозитория.
 
-При возможности, располагайте исполняемые файлы, от которых можно наследовать необходимые классы и функции для дальнейшего объединения проекта в корне соответсвующих папок.
+---
+## Overview
 
-# TODO
+<overview>
+LaserWeldMonitor is a software project focused on post-processing computer vision outputs, analyzing spectrograms, and processing thermograms. It provides tools for converting masks to polygons, analyzing spectrograms, processing thermograms, and training YOLO models. This project caters to users working with computer vision, spectrogram, and thermogram data for various applications.
+</overview>
 
-Необходимо расположить в папке, касающейся вашей части проекта, код, которым вы занимаетесь в данный момент. При необходимости унаследовать код из других уже существующих наших репозиториев либо обращайтесь в Глебу, либо можете в свободной форме переносить необходимые вам объекты при возможности.
+---
 
-В каждой из папок расположите requirements.txt для каждой из части проекта. В дальнейшем, при возможности объединим все в один файл.
 
-Если возникнут части кода, который может дублироваться в проектах - можно будет его вынести в доп папку в корне репозитория. Например конфигурационные файлы и тп.
+## Table of contents
 
-Если возникнут комментарии и предложения по улучшению структуры проекта - пишите.
+- [Core features](#core-features)
+- [Installation](#installation)
+- [Examples](#examples)
+- [Documentation](#documentation)
+- [Getting started](#getting-started)
+- [Contributing](#contributing)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
+- [Contacts](#contacts)
+- [Citation](#citation)
 
-# Repo Help
+---
 
-I have created so far three main lines of work going on in the project. I assume that with a possible crossing of approaches, it will be convenient to make imports of necessary modules, and the structure of the project will be quite convenient. Since most likely the main executables will be located in the root of the repository.
+## Core features
 
-If possible, place executable files from which you can inherit necessary classes and functions for further unification of the project in the root of the corresponding folders.
+<corefeatures>
 
-# TODO
+1. **Post-processing**: Includes converting masks to polygons for computer vision tasks.
+   
+2. **Spectrogram Analysis**: Involves preprocessing and analyzing spectrogram data using specific Jupyter notebooks.
+   
+3. **Thermogram Processing**: Handles conversion, defect prediction, processing, and visualization of thermogram data.
+   
+4. **YOLO Model Training**: Utilizes 'YoloTraining.ipynb' and 'yolo.yaml' for training YOLO models.
+   
+5. **Dependency Management**: Dependencies listed in 'requirements.txt' files for different subdirectories.
 
-You should place the code that you are currently working on in the folder related to your part of the project. If you need to inherit code from other existing repositories, either contact Gleb or you can freely transfer the objects you need if possible.
+</corefeatures>
 
-In each of the folders place requirements.txt for each part of the project. In the future, if possible, we will merge everything into one file.
+---
 
-If there are parts of code that can be duplicated in projects, it can be moved to an additional folder in the root of the repository. For example, configuration files, etc.
 
-If you have any comments and suggestions for improving the structure of the project - write me.
+## Installation
+
+Install LaserWeldMonitor using one of the following methods:
+
+**Build from source:**
+
+1. Clone the LaserWeldMonitor repository:
+```sh
+❯ git clone https://github.com/ILT-ITMO/LaserWeldMonitor
+```
+
+2. Navigate to the project directory:
+```sh
+❯ cd LaserWeldMonitor
+```
+
+3. Install the project dependencies:
+
+
+**Using `pip`** &nbsp;
+[<img align="center" src="https://img.shields.io/badge/Pip-3776AB.svg?style={badge_style}&logo=pypi&logoColor=white" />](https://pypi.org/project/pip/)
+
+```sh
+❯ pip install -r cv_postprocessing\requirements.txt, spectrograms_analysis\requirements.txt, thermograms_analysis\requirements.txt
+```
+
+
+
+---
+
+
+## Examples
+
+Examples of how this should work and how it should be used are available in [Not found any examples](https://github.com/ILT-ITMO/LaserWeldMonitor/tree/main/).
+
+---
+
+
+## Documentation
+
+A detailed LaserWeldMonitor description is available in [Not found any docs]().
+
+---
+
+
+## Getting started
+
+### Usage
+
+Run LaserWeldMonitor using the following command:
+ 
+ **Using `pip`** &nbsp;
+[<img align="center" src="https://img.shields.io/badge/Pip-3776AB.svg?style={badge_style}&logo=pypi&logoColor=white" />](https://pypi.org/project/pip/)
+
+```sh
+❯ python {entrypoint}
+```
+
+
+---
+
+
+## Contributing
+
+
+- **[Report Issues](https://github.com/ILT-ITMO/LaserWeldMonitor/issues )**: Submit bugs found or log feature requests for the LaserWeldMonitor project.
+
+
+---
+
+
+## License
+
+This project is protected under the Not found any License. For more details, refer to the [LICENSE](https://github.com/ILT-ITMO/LaserWeldMonitor/blob/main/) file.
+
+---
+
+
+## Acknowledgments
+
+- List any resources, contributors, inspiration, etc. here.
+
+---
+
+
+
+## Contacts
+
+Your contacts. For example:
+
+- [Telegram channel](https://t.me/) answering questions about your project
+- [VK group](<https://vk.com/>) your VK group
+- etc.
+
+---
+
+
+## Citation
+
+If you use this software, please cite it as below.
+
+### APA format:
+
+    ILT-ITMO (2025). LaserWeldMonitor repository [Computer software]. https://github.com/ILT-ITMO/LaserWeldMonitor
+
+### BibTeX format:
+
+    @misc{LaserWeldMonitor,
+
+        author = {ILT-ITMO},
+
+        title = {LaserWeldMonitor repository},
+
+        year = {2025},
+
+        publisher = {github.com},
+
+        journal = {github.com repository},
+
+        howpublished = {\url{https://github.com/ILT-ITMO/LaserWeldMonitor.git}},
+
+        url = {https://github.com/ILT-ITMO/LaserWeldMonitor.git}
+        
+    }
+
+---
