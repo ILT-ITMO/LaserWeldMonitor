@@ -18,7 +18,7 @@
 ## Overview
 
 <overview>
-LaserWeldMonitor provides post-processing and analysis tools for computer vision, spectrograms, and thermograms. It offers capabilities for converting masks to polygons, analyzing spectrograms, processing thermograms, defect prediction, and YOLO object detection training. This project caters to professionals working in various domains of computer vision and image analysis.
+LaserWeldMonitor is a software project that focuses on post-processing, analysis, and training tasks in computer vision, spectrograms, and thermograms. It provides essential functionalities for converting masks to polygons, analyzing spectrograms, processing thermographic images, and training object detection models. This project caters to professionals working in the domains of computer vision, spectrograms, and thermograms.
 </overview>
 
 ---
@@ -43,15 +43,15 @@ LaserWeldMonitor provides post-processing and analysis tools for computer vision
 
 <corefeatures>
 
-1. **Post-processing Tools**: Includes 'maskstopolygons.py' for converting masks to polygons in computer vision.
+1. **Post-processing Tasks**: Includes converting masks to polygons and handling defect prediction in images.
    
-2. **Analysis Notebooks**: 'PCAanalysis.ipynb' and 'Spectraparameters.ipynb' for spectrogram analysis tasks.
-
-3. **Thermogram Processing**: 'convert.py' and 'predictiondefects.py' for thermogram processing and defect prediction.
-
-4. **YOLO Training**: 'YoloTraining.ipynb' and 'yolo.yaml' specific to YOLO object detection training.
-
-5. **Dependency Management**: Utilizes 'requirements.txt' files and 'pip' for managing dependencies.
+2. **Analysis Functions**: Provides analysis on spectrograms and thermograms for various applications.
+   
+3. **Training Support**: Contains files related to training a YOLO object detection model.
+   
+4. **Dependency Management**: Utilizes 'requirements.txt' files and 'pip' for smooth execution.
+   
+5. **Documentation**: Detailed documentation in Python with usage and installation commands for easy setup.
 
 </corefeatures>
 
