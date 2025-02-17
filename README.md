@@ -18,7 +18,7 @@
 ## Overview
 
 <overview>
-LaserWeldMonitor is a software project focused on post-processing computer vision outputs, analyzing spectrograms, and processing thermograms. It provides tools for converting masks to polygons, analyzing spectrograms, processing thermograms, and training YOLO models. This project caters to users working with computer vision, spectrogram, and thermogram data for various applications.
+LaserWeldMonitor is a data processing and analysis tool that specializes in handling images, spectrograms, and thermograms. By offering functionalities like mask conversion, model training, PCA analysis, and defect prediction, this project enables in-depth data insights and visualization for users working with diverse data types.
 </overview>
 
 ---
@@ -43,15 +43,15 @@ LaserWeldMonitor is a software project focused on post-processing computer visio
 
 <corefeatures>
 
-1. **Post-processing**: Includes converting masks to polygons for computer vision tasks.
+1. **Data Processing**: Post-processing and analysis of images, spectrograms, and thermograms.
    
-2. **Spectrogram Analysis**: Involves preprocessing and analyzing spectrogram data using specific Jupyter notebooks.
+2. **Machine Learning**: Includes training a YOLO model for defect prediction in thermograms.
    
-3. **Thermogram Processing**: Handles conversion, defect prediction, processing, and visualization of thermogram data.
+3. **Analysis Tools**: Provides PCA analysis for spectrogram data and mask-to-polygon conversion functionality.
    
-4. **YOLO Model Training**: Utilizes 'YoloTraining.ipynb' and 'yolo.yaml' for training YOLO models.
+4. **Encryption**: Likely involves encryption or decryption operations in the 'ryptw.py' file.
    
-5. **Dependency Management**: Dependencies listed in 'requirements.txt' files for different subdirectories.
+5. **Comprehensive Insights**: Enables data analysis and visualization for various data types.
 
 </corefeatures>
 
