@@ -18,7 +18,7 @@
 ## Overview
 
 <overview>
-LaserWeldMonitor is a software project focused on post-processing computer vision outputs, analyzing spectrograms, and processing thermograms. It offers tools for converting masks to polygons, spectrogram analysis, thermogram processing, defect prediction, and YOLO object detection model training. This project caters to users in need of comprehensive analysis and prediction capabilities in the fields of computer vision, spectrogram analysis, and thermogram processing.
+LaserWeldMonitor is a versatile software project tailored for processing and analyzing various data types like images, spectrograms, and thermograms. With tools for conversion, model training, analysis, and visualization, it caters to professionals in computer vision, spectrograms, and thermograms fields, offering a comprehensive solution for data processing tasks.
 </overview>
 
 ---
@@ -43,15 +43,15 @@ LaserWeldMonitor is a software project focused on post-processing computer visio
 
 <corefeatures>
 
-1. **Post-processing**: Convert masks to polygons for computer vision tasks.
+1. **Data Processing**: Focus on post-processing and analysis of images, spectrograms, and thermograms.
    
-2. **Spectrogram Analysis**: Preprocess and analyze spectrograms using 'PCAanalysis.ipynb' and 'Spectraparameters.ipynb'.
-   
-3. **Thermogram Processing**: Handle conversion, defect prediction, processing, and visualization of thermograms.
-   
-4. **Object Detection**: Utilize 'YoloTraining.ipynb' and 'yolo.yaml' for training a YOLO model.
-   
-5. **Dependency Management**: Dependencies listed in 'requirements.txt' files for respective code functionalities.
+2. **Modular Architecture**: Separate sections for masks conversion, YOLO model training, and data analysis.
+
+3. **Dependency Management**: Individual requirements.txt files for different data analysis sections.
+
+4. **Documentation**: Detailed usage commands and installation instructions using pip for setup.
+
+5. **Versatile Tools**: Provides tools for converting, training models, analyzing, and visualizing data.
 
 </corefeatures>
 
