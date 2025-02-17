@@ -18,7 +18,7 @@
 ## Overview
 
 <overview>
-LaserWeldMonitor is a software project that focuses on post-processing, analysis, and training tasks in computer vision, spectrograms, and thermograms. It provides essential functionalities for converting masks to polygons, analyzing spectrograms, processing thermographic images, and training object detection models. This project caters to professionals working in the domains of computer vision, spectrograms, and thermograms.
+LaserWeldMonitor is a software project focused on post-processing computer vision outputs, analyzing spectrograms, and processing thermograms. It offers tools for converting masks to polygons, spectrogram analysis, thermogram processing, defect prediction, and YOLO object detection model training. This project caters to users in need of comprehensive analysis and prediction capabilities in the fields of computer vision, spectrogram analysis, and thermogram processing.
 </overview>
 
 ---
@@ -43,15 +43,15 @@ LaserWeldMonitor is a software project that focuses on post-processing, analysis
 
 <corefeatures>
 
-1. **Post-processing Tasks**: Includes converting masks to polygons and handling defect prediction in images.
+1. **Post-processing**: Convert masks to polygons for computer vision tasks.
    
-2. **Analysis Functions**: Provides analysis on spectrograms and thermograms for various applications.
+2. **Spectrogram Analysis**: Preprocess and analyze spectrograms using 'PCAanalysis.ipynb' and 'Spectraparameters.ipynb'.
    
-3. **Training Support**: Contains files related to training a YOLO object detection model.
+3. **Thermogram Processing**: Handle conversion, defect prediction, processing, and visualization of thermograms.
    
-4. **Dependency Management**: Utilizes 'requirements.txt' files and 'pip' for smooth execution.
+4. **Object Detection**: Utilize 'YoloTraining.ipynb' and 'yolo.yaml' for training a YOLO model.
    
-5. **Documentation**: Detailed documentation in Python with usage and installation commands for easy setup.
+5. **Dependency Management**: Dependencies listed in 'requirements.txt' files for respective code functionalities.
 
 </corefeatures>
 
