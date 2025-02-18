@@ -1,6 +1,3 @@
-<p align="center">
-    <img id="dynamicImage" src="None" align="center" width="20%" style="display: none;">
-</p>
 <p align="center"><h1 align="center">LASERWELDMONITOR</h1></p>
 <p align="center">
 	<a href="https://itmo.ru/"><img src="https://raw.githubusercontent.com/aimclub/open-source-ops/43bb283758b43d75ec1df0a6bb4ae3eb20066323/badges/ITMO_badge.svg"></a>
