@@ -73,6 +73,24 @@ class PTWFrameInfo:
 
   def __init__(self):
 
+    """
+        Initializes an object with several empty or zeroed properties. 
+
+        These properties are used to store information from various sections of a 
+        file's header and frame data, including name, signature, format, date and 
+        time of file save, camera details, lens details, filter details, aperture 
+        details, billet details, temperature details, pixel details, housing 
+        temperature, serial number, threshold levels, unit details, lock details, 
+        isoterm details, palette details, coordinates details, and other various 
+        properties. 
+
+        Args:
+            self: The instance of the class.
+
+        Returns:
+            None
+        """
+
     self.FileName = ''
     self.h_Signature = '' #[0:5]
     self.h_format = 'unknown'
