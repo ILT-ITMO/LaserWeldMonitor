@@ -1,15 +1,23 @@
 import pandas as pd
 import json
 import numpy as np
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Literal, Union
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import average_precision_score, precision_recall_curve
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from torch.optim import Adam
+from torch.utils.data import DataLoader
+from torch import nn
+import torch
+from copy import deepcopy
 
 
 
-def prepare_dataset(path: str, class_id: str = 'hi') -> Tuple[pd.DataFrame, pd.Series]:
+
+def prepare_dataset(path: str, class_id: str = 'hi', 
+                    type: Literal['reduced', 'lstm'] = 'reduced') -> Tuple[Union[pd.DataFrame, np.ndarray], Union[pd.Series, np.ndarray]]:
     with open(path, 'r') as f:
         data = json.load(f)
 
@@ -218,16 +226,18 @@ def prepare_dataset(path: str, class_id: str = 'hi') -> Tuple[pd.DataFrame, pd.S
 
     names = ['velocity', 'size', 'temp', 'cooling_speed', 'appearance_rate', 'n_spatters', 'welding_zone_temp']
     new_names = ['total_spatters']
-    for name in names:
-        new_names.append('mean_' + name)
-        new_names.append('max_' + name)
-        new_names.append('min_' + name)
+    if type == 'reduced':
+        for name in names:
+            new_names.append('mean_' + name)
+            new_names.append('max_' + name)
+            new_names.append('min_' + name)
+    else:
+        new_names.extend(names)
 
     defect_names = ['hu', 'hg', 'he','hp', 'hs', 'hm', 'hi']
     new_names.extend(defect_names)
 
     out = {key: {'A': [], 'B': [], 'C': [], 'D': []} for key in data.keys()}
-
 
     for key, value in data.items():  # iterate over thermograms
         for zone in out[key].keys():  # iterate over sections
@@ -235,35 +245,71 @@ def prepare_dataset(path: str, class_id: str = 'hi') -> Tuple[pd.DataFrame, pd.S
                 if zone in metric:
                     out[key][zone].append(value[metric])  # add features values to thermogram: section
 
-    for key in out.keys():  
-        for i, zone in enumerate(out[key].keys()):
-            for h in quality[key][i]:
-                out[key][zone].append([h, ] * len(out[key][zone][0]))
+    # print(out.keys())
+    # print(out['thermogram_21.npy'].keys())
+    # f = np.array(out['thermogram_21.npy']['A'])
+    # print(f.shape)
+    # f = f.transpose(1, 2, 0)
+    # print(f.shape)
+    # print(f[1])
+
+    if type == 'lstm':
+        for key in out.keys():  
+            for i, zone in enumerate(out[key].keys()):
+                out[key][zone] = np.array(out[key][zone]).transpose(1, 2, 0)
+                for h in quality[key][i]:
+                    out[key][zone] = np.concatenate((out[key][zone], h * np.ones((*out[key][zone].shape[:2], 1))), axis=-1
+                                                    )
+    else:
+        for key in out.keys():  
+            for i, zone in enumerate(out[key].keys()):
+                for h in quality[key][i]:
+                    out[key][zone].append([h, ] * len(out[key][zone][0]))
+
+    # print(out.keys())
+    # print(out['thermogram_21.npy'].keys())
+    # print(np.array(out['thermogram_21.npy']['A']))
 
     ds = []
-    for value in out.values():
-        for d in value.values():
-            for s in np.array(d).T.tolist():
-                ds.append(s)
+    if type == 'lstm':
+        for value in out.values():
+            for d in value.values():
+                ds.append(d)
+        ds = np.concatenate(ds)
+    else:
+        for value in out.values():
+            for d in value.values():
+                for s in np.array(d).T.tolist():
+                    ds.append(s)
+        df = pd.DataFrame(ds, columns=new_names)
 
-    df = pd.DataFrame(ds, columns=new_names)
+    if type == 'reduced':
+        df = pd.DataFrame(ds, columns=new_names)
 
-    df.hu = df.hu > quality_thresholds[0]
-    df.hg = df.hg > quality_thresholds[1]
-    df.he = df.he > quality_thresholds[2]
-    df.hp = df.hp > quality_thresholds[3]
-    df.hs = df.hs > quality_thresholds[4]
-    df.hm = df.hm > quality_thresholds[5]
-    df.hi = df.hi > quality_thresholds[6]
+        df.hu = df.hu > quality_thresholds[0]
+        df.hg = df.hg > quality_thresholds[1]
+        df.he = df.he > quality_thresholds[2]
+        df.hp = df.hp > quality_thresholds[3]
+        df.hs = df.hs > quality_thresholds[4]
+        df.hm = df.hm > quality_thresholds[5]
+        df.hi = df.hi > quality_thresholds[6]
 
-    df = df * 1
+        df = df * 1
 
-    is_defect = df[class_id]
-    df = df.drop(defect_names, axis=1)
-    df = df.drop([name for name in new_names if 'min' in name], axis=1)
-    df = df.drop([name for name in new_names if 'max' in name], axis=1)
+        is_defect = df[class_id]
+        df = df.drop(defect_names, axis=1)
+        df = df.drop([name for name in new_names if 'min' in name], axis=1)
+        df = df.drop([name for name in new_names if 'max' in name], axis=1)
 
-    return df, is_defect
+        return df, is_defect
+    
+    else:
+        defect_id = defect_names.index(class_id)
+        is_defect =  (ds[:, :, 8 + defect_id] > quality_thresholds[defect_id]) * 1
+        ds = ds[:, :, :8]
+
+        return ds, is_defect
+
 
 
 def validate_model_plot(model, X: pd.DataFrame, y: pd.Series) -> None:
@@ -313,8 +359,133 @@ def validate_list_models(models: Dict, data: List[str]) -> pd.DataFrame:
     out = {key: [] for key in data}
     columns = list(models.keys())
     for js in tqdm(data, total=len(data)):
-        X, y = prepare_dataset(js)
+        X, y = prepare_dataset(js, type='reduced')
         for _, model in tqdm(models.items(), total=len(models)):
-            out[js].append(validate_model(model, X, y))
+            if isinstance(model, nn.Module):
+                out[js].append(validate_nn_model(model, X, y))
+            else:
+                out[js].append(validate_model(model, X, y))
 
     return pd.DataFrame.from_dict(out, orient='index', columns=columns)
+
+
+### FOR PYTORCH FULLY CONNECTED NETWORKS
+
+
+def train_nn_clf(model: nn.Module, X: np.ndarray, y: np.ndarray) -> nn.Module:
+    ds = torch.cat((torch.from_numpy(X), torch.from_numpy(y)[..., None]), dim=1)  # creat dataset
+    dl = DataLoader(ds, batch_size=256, shuffle=True)  # create dataloader
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    model.to(device)
+    optim = Adam(model.parameters())
+    train_loss = nn.BCELoss()
+    model.train()
+    for _ in range(300):
+        for batch in dl:
+            X_train, y_train = batch[:, :-1].to(device).float(), batch[:, -1].to(device).float()
+            y_pred = model(X_train)
+            loss = train_loss(y_pred, y_train[..., None])
+            optim.zero_grad()
+            loss.backward()  # back propogation
+            optim.step()  # optimizer's step
+    return model
+
+
+def validate_nn_model_plot(model_: nn.Module, X: pd.DataFrame, y: pd.Series) -> None:
+    k_fold = StratifiedKFold(n_splits=10, shuffle=True)
+    y_real = []
+    y_proba = []
+    if not hasattr(model_, 'lstm'):
+        X = StandardScaler().fit_transform(X)
+        split = k_fold.split(X, y)
+    else:
+        for i in range(8):
+            X[:, :, i] = (X[:, :, i] - X[:, :, i].mean()) / X[:, :, i].std()
+        split = k_fold.split(X, y[:, 0])
+
+    for i, (train_index, test_index) in enumerate(split):
+        Xtrain, Xtest = X[train_index], X[test_index]
+        if not hasattr(model_, 'lstm'):
+            ytrain, ytest = y.to_numpy()[train_index], y.to_numpy()[test_index]
+        else:
+            ytrain, ytest = y[train_index], y[test_index]
+            ytest = ytest[:, 0]
+        if not hasattr(model_, 'lstm'):
+            model = train_nn_clf(deepcopy(model_), Xtrain, ytrain)
+        else:
+            model = train_lstm_clf(deepcopy(model_), Xtrain, ytrain)
+        model.eval()
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        with torch.no_grad():
+            pred_proba = model(torch.from_numpy(Xtest).to(device).float()).squeeze().cpu().numpy()
+        
+        precision, recall, _ = precision_recall_curve(ytest, pred_proba)
+        lab = 'Fold %d AP=%.4f' % (i+1, average_precision_score(ytest, pred_proba))
+        y_real.append(ytest)
+        plt.plot(precision, recall, label=lab)
+        y_proba.append(pred_proba)
+
+    y_real = np.concatenate(y_real)
+    y_proba = np.concatenate(y_proba)
+    precision, recall, _ = precision_recall_curve(y_real, y_proba)
+    lab = 'Overall AP=%.4f' % (average_precision_score(y_real, y_proba))
+    plt.plot(precision, recall, label=lab, lw=2, color='black')
+    plt.xlabel('Precision')
+    plt.ylabel('Recall')
+    plt.legend(loc='lower left', fontsize='small')
+    plt.show()
+
+
+def validate_nn_model(model_: nn.Module, X: pd.DataFrame, y: pd.Series) -> float:
+    k_fold = StratifiedKFold(n_splits=10, shuffle=True)
+    y_real = []
+    y_proba = []
+    if not hasattr(model_, 'lstm'):
+        X = StandardScaler().fit_transform(X)
+        split = k_fold.split(X, y)
+    else:
+        for i in range(8):
+            X[:, :, i] = (X[:, :, i] - X[:, :, i].mean()) / X[:, :, i].std()
+        split = k_fold.split(X, y[:, 0])
+    for i, (train_index, test_index) in enumerate(k_fold.split(X, y)):
+        Xtrain, Xtest = X[train_index], X[test_index]
+        if not hasattr(model_, 'lstm'):
+            ytrain, ytest = y.to_numpy()[train_index], y.to_numpy()[test_index]
+        else:
+            ytrain, ytest = y[train_index], y[test_index]
+        if not hasattr(model_, 'lstm'):
+            model = train_nn_clf(deepcopy(model_), Xtrain, ytrain)
+        else:
+            model = train_lstm_clf(deepcopy(model_), Xtrain, ytrain)
+        model.eval()
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        with torch.no_grad():
+            pred_proba = model(torch.from_numpy(Xtest).to(device).float()).squeeze().cpu().numpy()
+        y_real.append(ytest)
+        y_proba.append(pred_proba)
+
+    y_real = np.concatenate(y_real)
+    y_proba = np.concatenate(y_proba)
+    return average_precision_score(y_real, y_proba)
+
+
+### FOR PYTORCH LSTM NETWORKS
+
+
+def train_lstm_clf(model: nn.Module, X: np.ndarray, y: np.ndarray) -> nn.Module:
+    ds = torch.cat((torch.from_numpy(X), torch.from_numpy(y)[..., None]), dim=-1)  # creat dataset
+    dl = DataLoader(ds, batch_size=256, shuffle=True)  # create dataloader
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    model.to(device)
+    optim = Adam(model.parameters())
+    train_loss = nn.BCELoss()
+    model.train()
+    for _ in range(100):
+        for batch in dl:
+            X_train, y_train = batch[..., :-1].to(device).float(), batch[:, 0, -1].to(device).float()
+            y_pred = model(X_train)
+            loss = train_loss(y_pred, y_train[..., None])
+            optim.zero_grad()
+            loss.backward()  # back propogation
+            optim.step()  # optimizer's step
+    return model

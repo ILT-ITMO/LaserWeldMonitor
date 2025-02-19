@@ -362,6 +362,23 @@ class FeatureExtractor:
                             overall_metrics[f"min_{key}_{zone}"].append(float(chunk[chunk != 0].min()) if chunk.sum() != 0 else 0)
 
         return overall_metrics
+    
+    def compute_results_lstm(self) -> Dict[str, List[List[float]]]:
+        total = len(self.metrics['total_spatters'])
+        chunk_size = total // 4
+        overall_metrics = {}
+        interp_size = chunk_size // self.frames_to_interpolate  # chunk size inside section
+        for key in self.metrics.keys():
+            for i, zone in enumerate(('A', 'B', 'C', 'D')):
+                data = np.array(self.metrics[key][i * chunk_size : (i + 1) * chunk_size])  # metric inside zone
+                overall_metrics[f"{key}_{zone}"] = []
+                for j in range(interp_size):
+                    chunk = data[j * self.frames_to_interpolate : (j + 1) * self.frames_to_interpolate]
+                    if key == 'total_spatters':
+                        overall_metrics[f"{key}_{zone}"].append((chunk - chunk.min()).tolist())
+                    else:
+                        overall_metrics[f"{key}_{zone}"].append(chunk.tolist())
+        return overall_metrics
 
     def append(self, tracks: Dict[int, List[List[np.ndarray]]], t_frame: np.ndarray, center: np.ndarray) -> None:
         if len(tracks):
@@ -500,11 +517,12 @@ def process_thermogram(path: str, w_size: int) -> int:
     #recorder.release()
     #cv2.destroyAllWindows()
     #print(fe.compute_results())
-    return fe.compute_results(True).copy()
+    #return fe.compute_results(True).copy()
+    return fe.compute_results_lstm()
 
 import os
 
-W_SIZE = 10
+W_SIZE = 40
 
 paths = os.listdir('data/')
 counts = {}
@@ -516,7 +534,7 @@ for path in tqdm(paths):
 
 import json
 
-with open(f"metrics_{W_SIZE}.json", 'w') as f:
+with open(f"metrics_{W_SIZE}_lstm.json", 'w') as f:
     json.dump(counts, f)
 
-# print(counts)
+print(counts)
