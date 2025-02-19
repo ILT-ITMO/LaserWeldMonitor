@@ -105,12 +105,55 @@ def remove_reflection(boxes, center, dx, dy, r):
 
 
 class NearestTracker:
+    """
+Class Description:
+This class is used to track points in a two-dimensional space. It assigns unique IDs to new points and keeps track of the position of these points over time. It also has the ability to update the position of these points based on new detections and filter out points based on a distance threshold.
+
+Methods:
+- __init__: This method is a constructor and it's used to initialize the instance of the class. It sets up the 'tracked' attribute as an empty dictionary, 'max_id' as zero and 'max_d' as 30. 
+
+    Args:
+        self (object): A reference to the instance of the class.
+
+    Returns:
+        None
+
+- step: The 'step' function updates the tracked points based on the new detections. The function first checks if there are points that are currently being tracked. If not, the new detections are assigned to the tracked points. In case there are tracked points, the function tries to match the newly detected points with the previously tracked ones. Unmatched new points are assigned new IDs, and unmatched old points are discarded. The function also filters the matched points based on a distance threshold and updates the tracked points accordingly.
+        
+    Args:
+        pts (array-like): Two dimensional array-like object representing the new detected points. Each row should represent a point in 2D space.
+
+    Returns:
+        dict: Returns a dictionary with point IDs as keys and the corresponding points as values. The dictionary is a deep copy of the updated tracked points. """
     def __init__(self):
+        """
+    Initializes the instance of the class.
+
+    This method is a constructor and it's used to initialize the instance of the class. 
+    It sets up the 'tracked' attribute as an empty dictionary, 'max_id' as zero and 'max_d' as 30.
+
+    Args:
+        self (object): A reference to the instance of the class.
+        
+    Returns:
+        None
+    """
         self.tracked = {}
         self.max_id = 0
         self.max_d = 30
     
     def step(self, pts):
+        """
+        The 'step' function updates the tracked points based on the new detections. 
+        
+        The function first checks if there are points that are currently being tracked. If not, the new detections are assigned to the tracked points. In case there are tracked points, the function tries to match the newly detected points with the previously tracked ones. Unmatched new points are assigned new IDs, and unmatched old points are discarded. The function also filters the matched points based on a distance threshold and updates the tracked points accordingly.
+        
+        Args:
+            pts (array-like): Two dimensional array-like object representing the new detected points. Each row should represent a point in 2D space.
+
+        Returns:
+            dict: Returns a dictionary with point IDs as keys and the corresponding points as values. The dictionary is a deep copy of the updated tracked points. 
+        """
         if not len(self.tracked):
             self.tracked = {i: pt for i, pt in enumerate(pts)}
             self.max_id = len(self.tracked)
@@ -167,7 +210,44 @@ class NearestTracker:
 
 
 class Tracker:
+    """
+This class is used for tracking keypoints in a sequence of frames. It maintains a history of keypoints detected 
+in the last three frames, and uses methods for calculating distances and angles to match new detections with 
+existing tracks or create new tracks.
+
+Methods:
+    __init__(self): Initializes several attributes including maximum distance between joint points ('max_d'), 
+    maximum delta angle to match points ('delta_angle'), a dictionary to store tracked points with their last 
+    2 states ('tracked'), a list to store keypoints from the last 3 frames ('kpts'), and the maximum assigned 
+    ID ('max_id').
+
+    __compute_angle(pt1, pt2, ver): Computes the angle between two points (pt1 and pt2) with respect to a vertex 
+    (ver) in a 2D space.
+
+    __compute_distance(pt1, pts2): Calculates the Euclidean distance between a point 'pt1' and each point in 'pts2'.
+
+    __match_pts(pts, pt1, pt2, used_ids): Iterates over a list of detected points, computes the distances between 
+    these points and a given pair of points, and then finds the optimal and minimum distances.
+
+    step(pts): Accumulates keypoints from the last three frames, matches new detections with existing tracks, 
+    combines detections into new tracks and updates existing tracks. If no keypoints are provided or there are 
+    less than three frames, returns an empty tuple."""
     def __init__(self):
+        """
+    Initializer method for this class.
+
+    This method initializes several attributes for the class. The 'max_d' attribute is used to set the maximum 
+    distance between joint points. The 'delta_angle' attribute sets the maximum delta angle to match points, 
+    in degrees. The 'tracked' attribute is a dictionary that stores tracked points with their last 2 states. 
+    The 'kpts' attribute is a list that stores keypoints from the last 3 frames. The 'max_id' attribute is used 
+    to store the maximum assigned ID.
+
+    Args:
+        self (object): A reference to the instance of the class.
+
+    Returns:
+        None
+    """
         self.max_d = 30  # maximum distance between joint points
         self.delta_angle = 20 # maximum delta angle 180 +- to match pts (in degrees)
         self.tracked = {}  # dict with tracked points (last 2 states stored)
@@ -176,6 +256,20 @@ class Tracker:
 
     @staticmethod
     def __compute_angle(pt1: np.ndarray, pt2: np.ndarray, ver: np.ndarray) -> float:
+        """
+    Computes the angle between two points with respect to a vertex.
+
+    This method computes the angle between two points (pt1 and pt2) with respect to a vertex (ver) 
+    in a 2D space. It uses the dot product to find the cosine of the angle, and then converts it to degrees.
+
+    Args:
+        pt1 (np.ndarray): The first point in 2D space.
+        pt2 (np.ndarray): The second point in 2D space.
+        ver (np.ndarray): The vertex point in 2D space.
+
+    Returns:
+        float: The angle in degrees between pt1 and pt2 with respect to ver.
+    """
         cosine = np.dot(pt1[:2] - ver[:2], pt2[:2] - ver[:2]) / (np.linalg.norm(pt1[:2] - ver[:2]) * np.linalg.norm(pt2[:2] - ver[:2]))
         angle = np.degrees(np.arccos(cosine - np.sign(cosine) * 10e-6))
         return angle
@@ -186,6 +280,28 @@ class Tracker:
     
     def __match_pts(self, pts: Union[np.ndarray, List[np.ndarray]], pt1: np.ndarray, pt2: np.ndarray,
                     used_ids: List[int]) -> Tuple[Union[int, None], float, Union[int, None], float]:
+        """
+    Compute the optimal and minimum distance between a set of points and a given pair of points.
+
+    This method iterates over a list of detected points, computes the distances between these points 
+    and a given pair of points, and then finds the optimal and minimum distances. The optimal distance 
+    is the smallest distance that meets specific conditions related to the relative distances and the angle 
+    formed by the points. The minimum distance is simply the smallest computed distance. Points that 
+    have been previously used are skipped in the iteration.
+
+    Args:
+        pts (Union[np.ndarray, List[np.ndarray]]): The detected points to calculate distances from.
+        pt1 (np.ndarray): The first point of the pair to calculate distances to.
+        pt2 (np.ndarray): The second point of the pair to calculate distances to.
+        used_ids (List[int]): A list of indices of points in 'pts' that have been previously used.
+
+    Returns:
+        Tuple[Union[int, None], float, Union[int, None], float]: A tuple containing four elements:
+            - The index in 'pts' of the point with the optimal distance, or None if no such point is found.
+            - The optimal distance, or 181.0 if no such distance is found.
+            - The index in 'pts' of the point with the minimum distance, or None if no such point is found.
+            - The minimum distance, or 1000 if no such distance is found.
+    """
         d1 = self.__compute_distance(pt1, pt2)  # compute distance between them
         # Init optimal
         optimal_id = None
@@ -312,7 +428,37 @@ class Tracker:
 
 
 class FeatureExtractor:
+    """
+    This class is responsible for storing and computing metrics related to spatters such as welding zone temperature, 
+    total number of spatters, mean size, temperature, cooling speed and velocity of spatters per frame, and new spatter
+    appearance rate.
+
+    The class is initialized with a specific window size and an empty dictionary to store metrics. The window size and 
+    metrics dictionary are used to compute overall metrics based on the set metrics and the specified interpolation method.
+
+    Methods
+    --------
+    __init__(self, w_size: int = 10):
+        Initializes the object with a specific window size and an empty dictionary to store metrics.
+
+    compute_results(self, use_interpolation: bool = False) -> Dict[str, float]:
+        Computes overall metrics based on the set metrics and the specified interpolation method. 
+
+    append(self, tracks: Dict[int, List[List[np.ndarray]]], t_frame: np.ndarray, center: np.ndarray):
+        Processes the tracks and frame data to calculate various metrics related to spatters such as welding zone temperature, 
+        total number of spatters, mean size, temperature, cooling speed and velocity of spatters per frame, and new spatter
+        appearance rate."""
     def __init__(self, w_size: int = 10):
+        """
+    Initialize the object with a specific window size and an empty dictionary to store metrics.
+
+    Args:
+        self: The instance of the class.
+        w_size (int, optional): The size of the window for which metrics are to be stored. Default is 10.
+
+    Returns:
+        None
+    """
         self.metrics = {'total_spatters': [], 'velocity': [], 'size': [], 'temp': [], 'cooling_speed': [], 
                         'appearance_rate': [], 'n_spatters': [], 'welding_zone_temp': []}  # dict to store metrics
         self.last_tracks = None
@@ -320,6 +466,24 @@ class FeatureExtractor:
         self.frames_to_interpolate = w_size
 
     def compute_results(self, use_interpolation: bool=False) -> Dict[str, float]:
+        """
+        Computes overall metrics based on the set metrics and the specified interpolation method.
+
+        This method breaks down the metrics into four zones (A, B, C, D) and calculates the maximum, 
+        minimum, and mean values for each metric in each zone. If interpolation is not used, 
+        calculations are performed on the entire data set. If interpolation is used, calculations are 
+        performed on smaller chunks of the data set, and the results are stored in a list for each metric 
+        in each zone.
+
+        Args:
+            use_interpolation (bool): Whether or not to use interpolation when calculating metrics. 
+            Defaults to False.
+
+        Returns:
+            Dict[str, float]: A dictionary where the keys are strings representing the metric and zone 
+            (e.g., "total_spatters_A", "mean_appearance_rate_B"), and the values are either floats 
+            representing the calculated metric value, or lists of floats if interpolation was used.
+        """
         total = len(self.metrics['total_spatters'])
         chunk_size = total // 4
         overall_metrics = {}
@@ -381,6 +545,21 @@ class FeatureExtractor:
         return overall_metrics
 
     def append(self, tracks: Dict[int, List[List[np.ndarray]]], t_frame: np.ndarray, center: np.ndarray) -> None:
+        """
+    Processes the tracks and frame data to calculate various metrics related to spatters such as welding zone temperature, 
+    total number of spatters, mean size, temperature, cooling speed and velocity of spatters per frame, and new spatter
+    appearance rate.
+
+    Args:
+        self (object): The instance of the class.
+        tracks (Dict[int, List[List[np.ndarray]]]): A dictionary where each key is an integer and the value is a list of numpy arrays.
+            Each numpy array represents a track.
+        t_frame (np.ndarray): A numpy array representing the current frame.
+        center (np.ndarray): A numpy array representing the center of the current frame.
+
+    Returns:
+        None
+    """
         if len(tracks):
             # Temperature of welding zone (max)
             x, y, w, h = center

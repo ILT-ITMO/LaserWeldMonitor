@@ -1,0 +1,22 @@
+# Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
+path: D:/mask-to-annotation/datasets/dataset # dataset root dir
+train: images/train # train images (relative to 'path') 4 images
+val: images/val # val images (relative to 'path') 4 images
+
+nc: 1
+names: ['weld']
+# Data augmentation settings
+augmentation:
+  hsv_h: 0.015     # Hue augmentation (default: 0.015)
+  hsv_s: 0.7       # Saturation augmentation (default: 0.7)
+  hsv_v: 0.4       # Value augmentation (default: 0.4)
+  degrees: 0.0     # Rotation (default: 0.0)
+  translate: 0.1   # Translate (default: 0.1)
+  scale: 0.5       # Scale variation (default: 0.5)
+  shear: 0.0       # Shear (default: 0.0)
+  perspective: 0.0 # Perspective distortion (default: 0.0)
+  flipud: 0.0      # Vertical flip probability (default: 0.0)
+  fliplr: 0.5      # Horizontal flip probability (default: 0.5)
+  mosaic: 1.0      # Mosaic augmentation (default: 1.0)
+  mixup: 0.0       # MixUp augmentation (default: 0.0)
+  copy_paste: 0.0  # Copy-paste augmentation for segmentation (default: 0.0)
