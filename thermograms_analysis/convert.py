@@ -1,7 +1,7 @@
 import numpy as np
 from tqdm import tqdm
 import glob
-from ryptw import readPTWHeader, getPTWFrames
+from utils import readPTWHeader, getPTWFrames
 
 
 ptws = glob.glob('*.ptw')

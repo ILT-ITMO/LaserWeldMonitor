@@ -1,10 +1,10 @@
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
 import torch
-from nn_classifiers import LSTMClassifier
+from modules import LSTMClassifier
 
 
-from utils import *
+from utils import validate_nn_model_plot, prepare_dataset
 
 
 df, is_defect = prepare_dataset('metrics_40_lstm.json', type='lstm')

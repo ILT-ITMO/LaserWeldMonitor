@@ -6,8 +6,8 @@ from catboost import CatBoostClassifier
 from sklearn.svm import SVC
 
 
-from utils import *
-from nn_classifiers import NNClassifier
+from utils import validate_list_models, prepare_dataset
+from modules import NNClassifier
 
 
 df, is_defect = prepare_dataset('metrics_40.json')
