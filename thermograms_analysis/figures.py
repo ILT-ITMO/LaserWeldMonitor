@@ -37,5 +37,5 @@ for ax, img, t in zip(axs.flatten(), images, titles):
 #f.subplots_adjust(wspace=0., hspace=0.15, right=0.9, left=0.1, top=0.9, bottom=0.1)
 plt.tight_layout()
 
-plt.savefig('thermograms_analysis/spatters_tracking_algorithm.jpg')
+plt.savefig('thermograms_analysis/figures/spatters_tracking_algorithm.jpg')
 plt.show()

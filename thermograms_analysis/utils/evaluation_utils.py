@@ -3,7 +3,7 @@ import numpy as np
 from typing import Tuple, List, Dict, Literal, Union
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import average_precision_score, precision_recall_curve
+from sklearn.metrics import average_precision_score, precision_recall_curve, precision_recall_fscore_support
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from torch.optim import Adam
@@ -69,6 +69,50 @@ def validate_list_models(models: Dict, data: List[str]) -> pd.DataFrame:
                 out[js].append(validate_model(model, X, y))
 
     return pd.DataFrame.from_dict(out, orient='index', columns=columns)
+
+
+def find_optimal_threshold(model_, data: str) -> pd.DataFrame:
+    X, y = prepare_dataset(data, type='reduced')
+    k_fold = StratifiedKFold(n_splits=10, shuffle=True)
+    y_real = []
+    y_proba = []
+    for i, (train_index, test_index) in enumerate(k_fold.split(X, y)):
+        if isinstance(model_, nn.Module):
+            X = StandardScaler().fit_transform(X)
+            Xtrain, Xtest = X[train_index], X[test_index]
+        else:
+            Xtrain, Xtest = X.to_numpy()[train_index], X.to_numpy()[test_index]
+        ytrain, ytest = y.to_numpy()[train_index], y.to_numpy()[test_index]
+        
+        if isinstance(model_, nn.Module):
+            model = train_nn_clf(deepcopy(model_), Xtrain, ytrain)
+            model.eval()
+            device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+            with torch.no_grad():
+                pred_proba = model(torch.from_numpy(Xtest).to(device).float()).squeeze().cpu().numpy()
+        else:
+            model_.fit(Xtrain, ytrain)
+            pred_proba = model_.predict_proba(Xtest)[:, 1]
+        y_real.append(ytest)
+        y_proba.append(pred_proba)
+
+    y_real = np.concatenate(y_real)
+    y_proba = np.concatenate(y_proba)
+    
+    
+    thresholds = [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
+    out = {'thresholds': thresholds, 'precision': [], 'recall': [], 'f1-score': []}
+    for th in thresholds:
+        pr, rec, f1, _ = precision_recall_fscore_support(y_real, (y_proba > th) * 1, average='binary')
+        out['precision'].append(pr)
+        out['recall'].append(rec)
+        out['f1-score'].append(f1)
+
+    out['thresholds'].append(1)
+    out['precision'].append(1)
+    out['recall'].append(0)
+    out['f1-score'].append(0)
+    return pd.DataFrame.from_dict(out)
 
 
 ### FOR PYTORCH FULLY CONNECTED NETWORKS
