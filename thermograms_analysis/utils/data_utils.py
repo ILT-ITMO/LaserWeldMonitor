@@ -5,7 +5,8 @@ import numpy as np
 
 
 def prepare_dataset(path: str, class_id: str = 'hi', 
-                    type: Literal['reduced', 'lstm'] = 'reduced') -> Tuple[Union[pd.DataFrame, np.ndarray], Union[pd.Series, np.ndarray]]:
+                    type: Literal['reduced', 'lstm'] = 'reduced',
+                    clf: bool = True) -> Tuple[Union[pd.DataFrame, np.ndarray], Union[pd.Series, np.ndarray]]:
     with open(path, 'r') as f:
         data = json.load(f)
 
@@ -274,15 +275,16 @@ def prepare_dataset(path: str, class_id: str = 'hi',
     if type == 'reduced':
         df = pd.DataFrame(ds, columns=new_names)
 
-        df.hu = df.hu > quality_thresholds[0]
-        df.hg = df.hg > quality_thresholds[1]
-        df.he = df.he > quality_thresholds[2]
-        df.hp = df.hp > quality_thresholds[3]
-        df.hs = df.hs > quality_thresholds[4]
-        df.hm = df.hm > quality_thresholds[5]
-        df.hi = df.hi > quality_thresholds[6]
+        if clf:
+            df.hu = df.hu > quality_thresholds[0]
+            df.hg = df.hg > quality_thresholds[1]
+            df.he = df.he > quality_thresholds[2]
+            df.hp = df.hp > quality_thresholds[3]
+            df.hs = df.hs > quality_thresholds[4]
+            df.hm = df.hm > quality_thresholds[5]
+            df.hi = df.hi > quality_thresholds[6]
 
-        df = df * 1
+            df = df * 1
 
         is_defect = df[class_id]
         df = df.drop(defect_names, axis=1)
@@ -293,7 +295,10 @@ def prepare_dataset(path: str, class_id: str = 'hi',
     
     else:
         defect_id = defect_names.index(class_id)
-        is_defect =  (ds[:, :, 8 + defect_id] > quality_thresholds[defect_id]) * 1
+        if clf:
+            is_defect =  (ds[:, :, 8 + defect_id] > quality_thresholds[defect_id]) * 1
+        else:
+            is_defect =  ds[:, :, 8 + defect_id]
         ds = ds[:, :, :8]
 
         return ds, is_defect
