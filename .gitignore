@@ -1,7 +1,8 @@
 thermograms_analysis/*.json
 thermograms_analysis/*/__pycache__
-thermograms_analysis/catboost_info
+*/catboost_info
 thermograms_analysis/data
+thermograms_analysis/metrics
 thermograms_analysis/*.pkl
 thermograms_analysis/*.zip
 
