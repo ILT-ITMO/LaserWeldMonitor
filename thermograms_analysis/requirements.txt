@@ -1,6 +1,6 @@
 numpy
 opencv-python
-sklearn
+scikit-learn
 catboost
 pandas
 matplotlib
