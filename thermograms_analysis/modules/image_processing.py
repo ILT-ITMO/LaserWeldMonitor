@@ -689,10 +689,10 @@ def process_thermogram(path: str, w_size: int) -> int:
         frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
         
         frame = np.concatenate((frame, pts), axis=1).astype(np.uint8)
-        cv2.imshow('thermogram', pts)
-        if cv2.waitKey(0) == ord('q'):
-           cv2.imwrite('thermograms_analysis/spatters_tracks.png', cv2.resize(pts, (320, 256)))
-           break
+        # cv2.imshow('thermogram', pts)
+        # if cv2.waitKey(0) == ord('q'):
+        #    cv2.imwrite('thermograms_analysis/spatters_tracks.png', cv2.resize(pts, (320, 256)))
+        #    break
         #recorder.write(frame)
 
     #recorder.release()

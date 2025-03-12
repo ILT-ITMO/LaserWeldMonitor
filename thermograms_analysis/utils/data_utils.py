@@ -1,7 +1,8 @@
-from typing import Tuple, Literal, Union
+from typing import Tuple, Literal, Union, Dict
 import json
 import pandas as pd
 import numpy as np
+import cv2
 
 
 def prepare_dataset(path: str, class_id: str = 'hi', 
@@ -302,3 +303,36 @@ def prepare_dataset(path: str, class_id: str = 'hi',
         ds = ds[:, :, :8]
 
         return ds, is_defect
+
+
+def prepare_dataset_unlabeled(path: str) -> Dict[str, Dict[str, np.ndarray]]:
+    pass
+
+
+def visualize_thermogram(path: str) -> None:
+    frames = np.load(path)
+    t_min = frames.min()
+    t_max = frames.max()
+    frames -= t_min
+    frames = frames / (t_max - t_min)
+    frames *= 255
+    frames = frames.astype(np.uint8)
+    print(frames.shape)
+
+    for i, frame in enumerate(frames):
+        print(i)
+        cv2.imshow('Thermogram', frame)
+        if cv2.waitKey(0) == ord('q'):
+            break
+
+    cv2.destroyAllWindows()
+
+
+def crop_thermogram(path: str, last_frame: int) -> None:
+    frames = np.load(path)
+    print('Inital shape:', frames.shape)
+    frames = frames[:last_frame]
+    print('Output shape:', frames.shape)
+    np.save(path, frames)
+    frames = np.load(path)
+    print('Output shape after loading:', frames.shape)
