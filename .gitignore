@@ -6,3 +6,5 @@ thermograms_analysis/metrics
 thermograms_analysis/ptw
 thermograms_analysis/*.pkl
 thermograms_analysis/*.zip
+!thermograms_analysis/laser_params.json
+thermograms_analysis/*.xlsx

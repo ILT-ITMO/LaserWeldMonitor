@@ -5,7 +5,7 @@ import numpy as np
 import seaborn as sns
 
 
-data, y = prepare_dataset('thermograms_analysis/metrics_40.json', clf=False)
+data, y = prepare_dataset('thermograms_analysis/metrics/metrics_40.json', clf=False)
 print(data)
 
 ### Normal distribution test ###
@@ -36,7 +36,7 @@ classes = ['hu', 'hg', 'he','hp', 'hs', 'hm', 'hi']
 out_corr = []
 out_p = []
 for cl in classes:
-    data, y = prepare_dataset('thermograms_analysis/metrics_40.json', class_id=cl, clf=False)
+    data, y = prepare_dataset('thermograms_analysis/metrics/metrics_40.json', class_id=cl, clf=False)
     data = data.to_numpy()
     y = y.to_numpy()
     for i in range(data.shape[1]):
@@ -46,6 +46,12 @@ for cl in classes:
 
 
 out_corr = np.array(out_corr).reshape(len(classes), -1)
+
+import pandas as pd
+
+df = pd.DataFrame(out_corr)
+df.to_excel('thermograms_analysis/corr.xlsx')
+
 out_p = np.array(out_p).reshape(len(classes), -1)
 # add anotations to heatmap
 annot = out_corr.round(3).astype(str)

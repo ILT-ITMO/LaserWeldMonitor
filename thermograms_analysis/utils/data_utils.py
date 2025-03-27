@@ -5,15 +5,40 @@ import numpy as np
 import cv2
 
 
-def prepare_dataset(path: str, class_id: str = 'hi', 
-                    type: Literal['reduced', 'lstm'] = 'reduced',
-                    clf: bool = True) -> Tuple[Union[pd.DataFrame, np.ndarray], Union[pd.Series, np.ndarray]]:
-    with open(path, 'r') as f:
-        data = json.load(f)
+QUALITY_THRESHOLDS = [0.15, 0.3, 0.65, 0.65, 0.3, 0.3, 0]
 
-    quality_thresholds = [0.15, 0.3, 0.65, 0.65, 0.3, 0.3, 0]
-
-    quality = {"thermogram_7.npy": 
+QUALITY = {
+    "thermogram_1.npy": 
+    [[0.00, 0.14, 0.15, 0.00, 0.39, 0.15, 0.00],
+    [0.00, 0.16, 0.00, 0.00, 0.27, 0.05, 0.00],
+    [0.00, 0.13, 0.00, 0.00, 0.24, 0.02, 0.00],
+    [0.00, 0.90, 0.00, 0.00, 0.50, 0.05, 0.00]],
+    "thermogram_2.npy": 
+    [[0.00, 0.00, 0.04, 0.11, 0.00, 0.21, 0.00],
+    [0.00, 0.00, 0.00, 0.13, 0.23, 0.10, 0.00],
+    [0.00, 0.00, 0.00, 0.15, 0.13, 0.13, 0.00],
+    [0.04, 0.12, 0.03, 0.03, 0.00, 0.19, 0.00]],
+    "thermogram_3.npy": 
+    [[0.07, 0.10, 0.00, 0.18, 0.00, 0.29, 0.00],
+    [0.05, 0.29, 0.02, 0.00, 0.00, 0.23, 0.08],
+    [0.00, 0.10, 0.10, 0.00, 0.18, 0.17, 0.00],
+    [0.00, 0.17, 0.00, 0.00, 0.46, 0.13, 0.00]],
+    "thermogram_4.npy": 
+    [[0.12, 0.00, 0.00, 0.14, 0.00, 0.15, 0.00],
+    [0.08, 0.09, 0.00, 0.05, 0.00, 0.14, 0.00],
+    [0.14, 0.05, 0.05, 0.11, 0.00, 0.15, 0.00],
+    [0.11, 0.12, 0.11, 0.06, 0.00, 0.11, 0.00]],
+    "thermogram_5.npy": 
+    [[0.00, 0.17, 0.00, 0.00, 0.15, 0.10, 0.00],
+    [0.10, 0.16, 0.00, 0.07, 0.10, 0.03, 0.00],
+    [0.00, 0.25, 0.00, 0.07, 0.23, 0.10, 0.00],
+    [0.00, 0.23, 0.00, 0.09, 0.20, 0.09, 0.00]],
+    "thermogram_6.npy": 
+    [[0.000, 0.180, 0.000, 0.000, 0.174, 0.098, 0.000],
+    [0.099, 0.173, 0.097, 0.067, 0.000, 0.025, 0.000],
+    [0.000, 0.232, 0.000, 0.081, 0.216, 0.024, 0.000],
+    [0.000, 0.085, 0.000, 0.115, 0.134, 0.067, 0.000]],
+    "thermogram_7.npy": 
     [[0.091, 0.078, 0.000, 0.132, 0.091, 0.080, 0.000],
     [0.000, 0.132, 0.000, 0.080, 0.134, 0.019, 0.000],
     [0.000, 0.106, 0.000, 0.035, 0.329, 0.037, 0.000],
@@ -58,6 +83,11 @@ def prepare_dataset(path: str, class_id: str = 'hi',
     [0.131, 0.077, 0.000, 0.082, 0.000, 0.182, 0.000],
     [0.104, 0.093, 0.092, 0.051, 0.000, 0.360, 0.000],
     ],
+    "thermogram_15.npy":
+    [[0.128, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000],
+    [0.000, 0.000, 0.000, 0.134, 0.151, 0.000, 0.000],
+    [0.000, 0.000, 0.000, 0.070, 0.153, 0.000, 0.000],
+    [0.000, 0.000, 0.000, 0.066, 0.256, 0.066, 0.000]],
     "thermogram_16.npy":
     [[0.000, 0.000, 0.000, 0.138, 0.192, 0.050, 0.000],
     [0.000, 0.000, 0.000, 0.069, 0.121, 0.000, 0.000],
@@ -129,6 +159,16 @@ def prepare_dataset(path: str, class_id: str = 'hi',
     [0.000, 0.000, 0.000, 0.000, 0.091, 0.097, 0.561],
     [0.000, 0.000, 0.000, 0.000, 0.072, 0.348, 0.750],
     ],
+    "thermogram_28.npy":
+    [[0.000, 0.000, 0.000, 0.000, 0.140, 0.000, 0.350],
+    [0.000, 0.000, 0.063, 0.000, 0.000, 0.048, 0.000],
+    [0.000, 0.000, 0.000, 0.000, 0.070, 0.181, 0.000],
+    [0.000, 0.000, 0.000, 0.000, 0.112, 0.000, 0.000]],
+    "thermogram_29.npy":
+    [[0.000, 0.000, 0.000, 0.150, 0.128, 0.270, 0.000],
+    [0.000, 0.160, 0.000, 0.118, 0.214, 0.250, 0.000],
+    [0.000, 0.177, 0.000, 0.000, 0.153, 0.161, 0.000],
+    [0.000, 0.191, 0.000, 0.000, 0.225, 0.029, 0.000]],
     "thermogram_30.npy":
     [[0.000, 0.103, 0.000, 0.000, 0.156, 0.176, 0.000],
     [0.000, 0.055, 0.000, 0.000, 0.119, 0.031, 0.000],
@@ -161,7 +201,7 @@ def prepare_dataset(path: str, class_id: str = 'hi',
     ]
     }
 
-    labels = {
+LABELS = {
     "thermogram_7.npy": 
     [0, 0, 1, 0],
     "thermogram_8.npy":
@@ -214,6 +254,16 @@ def prepare_dataset(path: str, class_id: str = 'hi',
     [0, 0, 0, 0],
     }
 
+
+
+def prepare_dataset(path: str, class_id: str = 'hi', 
+                    type: Literal['reduced', 'lstm'] = 'reduced',
+                    clf: bool = True) -> Tuple[Union[pd.DataFrame, np.ndarray], Union[pd.Series, np.ndarray]]:
+    with open(path, 'r') as f:
+        data = json.load(f)
+
+    
+
     names = ['velocity', 'size', 'temp', 'cooling_speed', 'appearance_rate', 'n_spatters', 'welding_zone_temp']
     new_names = ['total_spatters']
     if type == 'reduced':
@@ -247,13 +297,13 @@ def prepare_dataset(path: str, class_id: str = 'hi',
         for key in out.keys():  
             for i, zone in enumerate(out[key].keys()):
                 out[key][zone] = np.array(out[key][zone]).transpose(1, 2, 0)
-                for h in quality[key][i]:
+                for h in QUALITY[key][i]:
                     out[key][zone] = np.concatenate((out[key][zone], h * np.ones((*out[key][zone].shape[:2], 1))), axis=-1
                                                     )
     else:
         for key in out.keys():  
             for i, zone in enumerate(out[key].keys()):
-                for h in quality[key][i]:
+                for h in QUALITY[key][i]:
                     out[key][zone].append([h, ] * len(out[key][zone][0]))
 
     # print(out.keys())
@@ -277,13 +327,13 @@ def prepare_dataset(path: str, class_id: str = 'hi',
         df = pd.DataFrame(ds, columns=new_names)
 
         if clf:
-            df.hu = df.hu > quality_thresholds[0]
-            df.hg = df.hg > quality_thresholds[1]
-            df.he = df.he > quality_thresholds[2]
-            df.hp = df.hp > quality_thresholds[3]
-            df.hs = df.hs > quality_thresholds[4]
-            df.hm = df.hm > quality_thresholds[5]
-            df.hi = df.hi > quality_thresholds[6]
+            df.hu = df.hu > QUALITY_THRESHOLDS[0]
+            df.hg = df.hg > QUALITY_THRESHOLDS[1]
+            df.he = df.he > QUALITY_THRESHOLDS[2]
+            df.hp = df.hp > QUALITY_THRESHOLDS[3]
+            df.hs = df.hs > QUALITY_THRESHOLDS[4]
+            df.hm = df.hm > QUALITY_THRESHOLDS[5]
+            df.hi = df.hi > QUALITY_THRESHOLDS[6]
 
             df = df * 1
 
@@ -297,7 +347,7 @@ def prepare_dataset(path: str, class_id: str = 'hi',
     else:
         defect_id = defect_names.index(class_id)
         if clf:
-            is_defect =  (ds[:, :, 8 + defect_id] > quality_thresholds[defect_id]) * 1
+            is_defect =  (ds[:, :, 8 + defect_id] > QUALITY_THRESHOLDS[defect_id]) * 1
         else:
             is_defect =  ds[:, :, 8 + defect_id]
         ds = ds[:, :, :8]
@@ -307,6 +357,19 @@ def prepare_dataset(path: str, class_id: str = 'hi',
 
 def prepare_dataset_unlabeled(path: str) -> Dict[str, Dict[str, np.ndarray]]:
     pass
+
+
+def prepare_dataset_laser_params(class_id: str = 'hi') -> Tuple[np.ndarray, np.ndarray]:
+    defect_names = ['hu', 'hg', 'he','hp', 'hs', 'hm', 'hi']
+    with open('thermograms_analysis/laser_params.json', 'r') as f:
+        laser_p = json.load(f)
+    defect_id = defect_names.index(class_id)
+    out_X = []
+    out_y = []
+    for key in laser_p.keys():
+        out_X.append(laser_p[key])
+        out_y.append(np.any(np.array(QUALITY[key])[:, defect_id] > QUALITY_THRESHOLDS[defect_id], axis=0) * 1)
+    return np.array(out_X), np.array(out_y)
 
 
 def visualize_thermogram(path: str) -> None:

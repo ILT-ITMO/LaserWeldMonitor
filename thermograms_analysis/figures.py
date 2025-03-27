@@ -23,19 +23,24 @@ filtered /= (f_max - f_min)
 filtered *= 255
 
 binarized = ((filtered > 140) * 255).astype(np.uint8)
-tracked = cv2.imread('thermograms_analysis/spatters_tracks.png', 0)
 
-f, axs = plt.subplots(2,2, figsize=(8, 6))
+cv2.imwrite('thermograms_analysis/figures/frame.jpg', frame)
+cv2.imwrite('thermograms_analysis/figures/filtered.jpg', filtered)
+cv2.imwrite('thermograms_analysis/figures/binarized.jpg', binarized)
 
-images = (frame, filtered, binarized, tracked)
-titles = ('a', 'b', 'c', 'd')
-for ax, img, t in zip(axs.flatten(), images, titles):
-    ax.imshow(img, cmap='gray')
-    ax.axis('off')
-    ax.set_title(t, style='italic')
+# tracked = cv2.imread('thermograms_analysis/spatters_tracks.png', 0)
 
-#f.subplots_adjust(wspace=0., hspace=0.15, right=0.9, left=0.1, top=0.9, bottom=0.1)
-plt.tight_layout()
+# f, axs = plt.subplots(2,2, figsize=(8, 6))
 
-plt.savefig('thermograms_analysis/figures/spatters_tracking_algorithm.jpg')
-plt.show()
+# images = (frame, filtered, binarized, tracked)
+# titles = ('a', 'b', 'c', 'd')
+# for ax, img, t in zip(axs.flatten(), images, titles):
+#     ax.imshow(img, cmap='gray')
+#     ax.axis('off')
+#     ax.set_title(t, style='italic')
+
+# #f.subplots_adjust(wspace=0., hspace=0.15, right=0.9, left=0.1, top=0.9, bottom=0.1)
+# plt.tight_layout()
+
+# plt.savefig('thermograms_analysis/figures/spatters_tracking_algorithm.jpg')
+# plt.show()
