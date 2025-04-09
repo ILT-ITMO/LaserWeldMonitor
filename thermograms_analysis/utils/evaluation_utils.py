@@ -14,7 +14,8 @@ from copy import deepcopy
 from .data_utils import prepare_dataset
 
 
-def validate_model_plot(model, X: pd.DataFrame, y: pd.Series) -> None:
+def validate_model_plot(model, X: pd.DataFrame, y: pd.Series) -> Dict:
+    output = {}
     k_fold = StratifiedKFold(n_splits=10, shuffle=True)
     y_real = []
     y_proba = []
@@ -24,7 +25,15 @@ def validate_model_plot(model, X: pd.DataFrame, y: pd.Series) -> None:
         model.fit(Xtrain, ytrain)
         pred_proba = model.predict_proba(Xtest)[:, 1]
         precision, recall, _ = precision_recall_curve(ytest, pred_proba)
-        lab = 'Fold %d AP=%.4f' % (i+1, average_precision_score(ytest, pred_proba))
+        lab = 'Fold %d AP=%.3f' % (i+1, average_precision_score(ytest, pred_proba))
+        precision = precision.tolist()
+        precision.append(1)
+        precision.insert(0, 0)
+        recall = recall.tolist()
+        recall.append(0)
+        recall.insert(0, 1)
+
+        output[lab] = [precision, recall]
         y_real.append(ytest)
         plt.plot(precision, recall, label=lab)
         y_proba.append(pred_proba)
@@ -32,12 +41,20 @@ def validate_model_plot(model, X: pd.DataFrame, y: pd.Series) -> None:
     y_real = np.concatenate(y_real)
     y_proba = np.concatenate(y_proba)
     precision, recall, _ = precision_recall_curve(y_real, y_proba)
-    lab = 'Overall AP=%.4f' % (average_precision_score(y_real, y_proba))
+    lab = 'Overall AP=%.3f' % (average_precision_score(y_real, y_proba))
+    precision = precision.tolist()
+    precision.append(1)
+    precision.insert(0, 0)
+    recall = recall.tolist()
+    recall.append(0)
+    recall.insert(0, 1)
+    output[lab] = [precision, recall]
     plt.plot(precision, recall, label=lab, lw=2, color='black')
     plt.xlabel('Precision')
     plt.ylabel('Recall')
     plt.legend(loc='lower left', fontsize='small')
     plt.show()
+    return output
 
 
 def validate_model(model, X: pd.DataFrame, y: pd.Series) -> float:
