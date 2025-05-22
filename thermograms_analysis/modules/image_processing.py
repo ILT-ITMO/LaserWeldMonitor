@@ -635,10 +635,10 @@ def process_thermogram(path: str, w_size: int) -> int:
 
     k = 0
 
-    print(path)
+    #print(path)
 
     for frame, t_frame in zip(frames, temp_frames):
-        print(k)
+        #print(k)
         k += 1
         pts = np.zeros((frame.shape[0] * scale, frame.shape[1] * scale) + (3,))  # for drawing
 
@@ -646,6 +646,8 @@ def process_thermogram(path: str, w_size: int) -> int:
             center, ellips = detect_welding_zone(frame)
             frame = cv2.ellipse(frame, ellips, (255,), 1)
         except:
+            for key in fe.metrics.keys():
+                fe.metrics[key].append(0)
             continue
 
         boxes = detect_spatters(frame)

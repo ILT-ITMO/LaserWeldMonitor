@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import numpy as np
 import cv2
+import re
 
 
 QUALITY_THRESHOLDS = [0.15, 0.3, 0.65, 0.65, 0.3, 0.3, 0]
@@ -396,6 +397,78 @@ def prepare_dataset(path: str, class_id: str = 'hi',
 
         return ds, is_defect
 
+
+def prepare_dataset_spectrogram(path: str, w_size: int, class_id: str = 'hi'):
+    with open(path, 'r') as f:
+        data = json.load(f)
+
+    sp_data = pd.read_excel('thermograms_analysis/data/spectral_data.xlsx', sheet_name=1)
+    fps = 150
+    time = sp_data['Time, s'] * fps // w_size
+    #print(time)
+    feat = ['Mean', 'STD', 'Modality', 'Skewness', 'Kurtosis', 'IQR', 'SNR1', 'SNR2']
+    feat = sp_data[feat]
+    names = ['velocity', 'size', 'temp', 'cooling_speed', 'appearance_rate', 'n_spatters', 'welding_zone_temp']
+    new_names = ['total_spatters']
+    spec_names = feat.columns.to_list()
+    for name in names:
+        new_names.append('mean_' + name)
+        new_names.append('max_' + name)
+        new_names.append('min_' + name)
+
+    defect_names = ['hu', 'hg', 'he','hp', 'hs', 'hm', 'hi']
+    new_names.extend(defect_names)
+
+    out = {key: {'A': [], 'B': [], 'C': [], 'D': []} for key in data.keys()}
+
+    for key, value in data.items():  # iterate over thermograms
+        for zone in out[key].keys():  # iterate over sections
+            for metric in value.keys():  # iterate over feature in one thermogram
+                if zone in metric:
+                    out[key][zone].append(value[metric])  # add features values to thermogram: section
+
+    for key in out.keys():  
+        for i, zone in enumerate(out[key].keys()):
+            for h in QUALITY[key][i]:
+                out[key][zone].append([h, ] * len(out[key][zone][0]))
+    
+    for key, value in out.items():  # iterate over thermograms
+        for zone in value.keys():  # iterate over sections
+            out[key][zone] = np.array(out[key][zone]).T
+
+    #print(out["thermogram_21.npy"]['A'].shape)
+    ds = []
+    for key in out.keys():
+        n = int(key.replace('.npy', '').split('_')[-1])
+        step = int(time[n - 1])
+        spec = feat.loc[n - 1].to_list()
+        d = []
+        for zone in ('A', 'B', 'C', 'D'):
+            d.append(out[key][zone])
+        try:
+            d = np.concatenate(d, axis=0)[step].tolist()
+        except:
+            continue
+        ds.append(spec + d)
+        
+    df = pd.DataFrame(ds, columns=spec_names + new_names)
+    df.hu = df.hu > QUALITY_THRESHOLDS[0]
+    df.hg = df.hg > QUALITY_THRESHOLDS[1]
+    df.he = df.he > QUALITY_THRESHOLDS[2]
+    df.hp = df.hp > QUALITY_THRESHOLDS[3]
+    df.hs = df.hs > QUALITY_THRESHOLDS[4]
+    df.hm = df.hm > QUALITY_THRESHOLDS[5]
+    df.hi = df.hi > QUALITY_THRESHOLDS[6]
+
+    df = df * 1
+
+    is_defect = df[class_id]
+    df = df.drop(defect_names, axis=1)
+    df = df.drop([name for name in new_names if 'min' in name], axis=1)
+    df = df.drop([name for name in new_names if 'max' in name], axis=1)
+
+    return df, is_defect
+        
 
 def prepare_dataset_laser_params(class_id: str = 'hi') -> Tuple[np.ndarray, np.ndarray]:
     defect_names = ['hu', 'hg', 'he','hp', 'hs', 'hm', 'hi']

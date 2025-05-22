@@ -91,5 +91,5 @@ axes[0].set_title('a')
 axes[0].axis('equal')
 axes[0].set(xlim=(0, 1), ylim=(0, 1))
 
-plt.savefig('thermograms_analysis/figures/optimal_threshold_calculation.jpg')
+plt.savefig('thermograms_analysis/figures/Figure_6.png', dpi=400)
 plt.show()

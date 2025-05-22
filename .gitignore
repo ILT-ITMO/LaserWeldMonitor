@@ -8,3 +8,4 @@ thermograms_analysis/*.pkl
 thermograms_analysis/*.zip
 !thermograms_analysis/laser_params.json
 thermograms_analysis/*.xlsx
+thermograms_analysis/dummy.py
