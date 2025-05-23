@@ -1,0 +1,32 @@
+AI_GENERATED_DATA/
+Annotations/
+Assets/
+coco.py
+datasets/
+Demo - COTS Dataset - Multiple Objects.ipynb
+Demo - COTS Dataset - Single Object.ipynb
+Environment/
+Evaluation/
+LICENSE
+predicted_masks/
+presentation.pdf
+README.md
+runs/
+tmp/
+toTrainOn/
+weld_processing/
+presentations/
+Rev 2/
+Test results/
+YOLOv8
+weldseg-main/
+Plate/
+Paper/
+pixel_size/
+Main/
+for reporting purposes/
+Evaluation/
+.ipynb_checkpoints/
+__pycache__/
+welding/examples/
+welding/weights/
