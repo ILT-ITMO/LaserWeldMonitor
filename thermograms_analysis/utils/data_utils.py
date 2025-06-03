@@ -404,7 +404,7 @@ def prepare_dataset_spectrogram(path: str, w_size: int, class_id: str = 'hi'):
 
     sp_data = pd.read_excel('thermograms_analysis/data/spectral_data.xlsx', sheet_name=1)
     fps = 150
-    time = sp_data['Time, s'] * fps // w_size
+    # time = sp_data['Time, s'] * fps // w_size
     #print(time)
     feat = ['Mean', 'STD', 'Modality', 'Skewness', 'Kurtosis', 'IQR', 'SNR1', 'SNR2']
     feat = sp_data[feat]
@@ -440,16 +440,18 @@ def prepare_dataset_spectrogram(path: str, w_size: int, class_id: str = 'hi'):
     ds = []
     for key in out.keys():
         n = int(key.replace('.npy', '').split('_')[-1])
-        step = int(time[n - 1])
         spec = feat.loc[n - 1].to_list()
         d = []
-        for zone in ('A', 'B', 'C', 'D'):
-            d.append(out[key][zone])
-        try:
-            d = np.concatenate(d, axis=0)[step].tolist()
-        except:
-            continue
-        ds.append(spec + d)
+        # print(out[key]['D'].shape)
+        
+        # for zone in ('A', 'B', 'C', 'D'):
+        #     d.append(out[key][zone])
+        # try:
+        #     d = np.concatenate(d, axis=0)[step].tolist()
+        # except:
+        #     continue
+        ds.extend([spec + d.tolist() for d in out[key]['D']])
+        # ds.append(spec + out[key]['D'].mean(axis=0).tolist())
         
     df = pd.DataFrame(ds, columns=spec_names + new_names)
     df.hu = df.hu > QUALITY_THRESHOLDS[0]
