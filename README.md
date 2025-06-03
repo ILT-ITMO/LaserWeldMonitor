@@ -128,7 +128,7 @@ Run LaserWeldMonitor using the following command:
 
 ## License
 
-This project is protected under the Not found any License. For more details, refer to the [LICENSE](https://github.com/ILT-ITMO/LaserWeldMonitor/blob/main/) file.
+This project is protected under the BSD-3-Clause license. For more details, refer to the [LICENSE]([https://github.com/ILT-ITMO/LaserWeldMonitor/LICE](https://github.com/ILT-ITMO/LaserWeldMonitor/blob/main/LICENSE)) file.
 
 ---
 
