@@ -11,6 +11,8 @@ sys.path.append(os.path.abspath("welding"))
 print(os.getcwd())
 import numpy as np
 import json
+import pandas as pd
+import re
 
 from paddleocr import PaddleOCR
 from ultralytics import YOLO
@@ -32,6 +34,17 @@ def get_mask(model, img):
     mask = cv2.resize(mask, (W, H))
 
     return mask
+
+
+
+
+# Define a function to split the 'key' into numeric and alphabetical parts
+def split_key(key):
+    match = re.match(r"(\d+)([a-zA-Z]+)", key)
+    if match:
+        return (int(match.group(1)), match.group(2))
+    return (float('inf'), '')  # ssshandle case where the key does not match the expected pattern
+
 
 
 
@@ -88,27 +101,12 @@ def main(config):
             print(os.path.join(str(image_path), key+'.jpg'))
             plot = im.copy()
 
-            # read pixel per unit and unit type (mm or )
-            #le is the pixel/unit ...u is unit
+         
             le, u, line = get_pixel_real_size(ocr, im)
-            # plot= render_line(plot, line, length_per_pex=le, unit="mm", color=(0, 255, 0))
-            # create mask of middle part of the plate
+ 
             mask1 = get_mask(model1, im)
             mask1=keep_largest_component(mask1)
-            # cv2.imwrite('mask.jpg', mask1)
-            # kernel = np.ones((20, 20))
-            # mask_cleaned = cv2.morphologyEx(mask1, cv2.MORPH_OPEN, kernel, iterations=3)
-    
-            # # Optionally, apply median blur to further clean the image
-            # mask1 = cv2.medianBlur(mask_cleaned, 5)
-            # kernel = np.ones((10, 10))
-                
-            # mask1 = cv2.dilate(mask1, kernel, iterations=12)
-            # mask1 = cv2.erode(mask1, kernel, iterations=12)
-            # kernel = np.ones((10, 10))
-            # mask1 = cv2.dilate(mask1, kernel, iterations=4)
-
-            
+          
             # create mask of side parts of the plate
             mask2 = get_mask(model2, im)
             mask2 = cv2.subtract(mask2,mask1)
@@ -141,7 +139,6 @@ def main(config):
             #approximate side lines
             main_sides_rect = plate_width_line(rect, main_object_con)
             #Aveen Here: so here I see that we are always taking 4 points, but the correct solution is to take 3 if incomplete penetration 
-            #TODO:
             (p11, p12), (p21, p22) = plate_width_line(quad, main_object_con)
             c1, c2 = line_intersection_contur([(p11, p21), (p12, p22)], main_object_con)
             #here c1 and c2 are the 2 pink lines which are the closest parts between the main and the 
@@ -152,7 +149,6 @@ def main(config):
             plot = cv2.line(plot, tuple(p12), tuple(p22), (255, 255, 0), 5) #top line 
             
             if p12[1] > p11[1]:
-                # print(p11,"**", p12)
                 # Swap the points to ensure p12 is always above p11
                 p11, p12 = p12, p11
                 p21, p22 = p22, p21
@@ -179,19 +175,14 @@ def main(config):
                 dist, _, p1, p2 = find_deviation_peaks(l, c, 0.0005 * t)
                 
                 res_d.append(np.abs(dist))
-                # print(dist*le)
-                # print(res_d)
-                # res_d[1][1]
+        
             if (case==1):
                 
 
                 
-                # dist, _, p1, p2 = find_deviation_peaks(l, c, 0.0005 * t)
-                # res_d.append(np.abs(dist))
-                # # Convert to tuples
-                # line=(p21, p_perp)
+             
                 plot = render_line(plot,line , le, u)
-                # print ("***", res_d*le)
+             
                 hs=res_d[1][1] * le
                 hi=res_d[0][1] * le 
                 hg=0
@@ -202,13 +193,11 @@ def main(config):
                 # print(t*le)
                 
                 t=t-res_d[0][1]
-                # print(t*le)
-                # misalignment = 0
+       
             if (case==2):
-                # print ("###", res_d)
+          
                 
                 plot = render_line(plot, main_sides_rect[0], le, u)
-                plot = render_line(plot, main_sides_rect[1], le, u, color=(0, 255, 0))
                 hi=0
                 hs=res_d[1][1] * le
                 hg= res_d[0][0] * le
@@ -250,17 +239,7 @@ def main(config):
             plot = cv2.putText(plot, f'misalignment: %.2f' % misalignment + u, (50, 50), cv2.FONT_HERSHEY_COMPLEX, 2, (0, 0, 255), 2)
 
             
-            # res.append({
-            #     "key": key,
-            #     "he": res_d[1][0] * le,
-            #     "hs": res_d[1][1] * le,
-            #     "hg": res_d[0][0] * le,
-            #     "hp": res_d[0][1] * le,
-            #     "t": t * le,
-            #     "hm": misalignment,
-            #     "b_upper": b_upper * le,
-            #     "b_downer": b_downer * le,
-            # })
+    
             print ("t\n", t)
             print ("le\n", le)
             print ("T\n", le*t)
@@ -278,7 +257,6 @@ def main(config):
                 "hm": misalignment,
                 "hi": hi,
                 "b_downer": b_downer * le,
-                # case: complete, inc
             })
             gosts.append(check_gosts(res[-1]))
             cv2.imwrite(str(output_rendered / f'{key}.jpg'), plot)
@@ -287,12 +265,19 @@ def main(config):
             print(f"error while proceeding {key}")
             print(e)
     res_df = pd.DataFrame(res)
-    res_df.to_csv(output_result)
 
     gosts_df = pd.DataFrame(gosts)
     gosts_df.to_csv(output_gosts)
-
-
+    # Apply the function to create a sorting key
+    res_df['sort_key'] = res_df['key'].apply(split_key)
+    
+    # Sort the DataFrame based on the sorting key
+    res_df = res_df.sort_values('sort_key')
+    
+    # Drop the temporary 'sort_key' column
+    res_df = res_df.drop(columns=['sort_key'])
+    # Save the sorted DataFrame back to a CSV
+    res_df.to_csv(output_result, index=False)
 if __name__ == '__main__':
     config_path = pathlib.Path('.\welding\config.json').resolve()
     # print(config_path)
