@@ -1,0 +1,6 @@
+ultralytics
+opencv-python
+numpy
+pillow
+paddlepaddle
+paddleocr==2.7.0.3

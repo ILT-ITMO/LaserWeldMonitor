@@ -30,28 +30,25 @@ export default function MyDropzone() {
     acceptedFiles,
     getInputProps,
     isDragActive,
-  } = useDropzone({ onDrop })
 
-  const selectedFile = acceptedFiles[0]
+  } = useDropzone({ onDrop,  multiple:true })
+
+//   const selectedFile = acceptedFiles[0]
 
   const uploadImage = async () => {
-    let formData = new FormData()
+const urls = []
+  for (let file of acceptedFiles) {
+    const formData = new FormData()
+    formData.append("image", file)
 
-    formData.append("file", selectedFile)
-    formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET)
-    formData.append("api_key", import.meta.env.VITE_CLOUDINARY_API_KEY)
-
-    await fetch(`https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`, {
+    const res = await fetch(`http://localhost:5000/api/predict`, {
       method: "POST",
       body: formData,
     })
-      .then(r => {
-        return r.json()
-      })
-      .then(data => {
-        setUploadedURL(data.url)
-      })
-
+    const data = await res.json()
+    urls.push(data.url)
+  }
+  setUploadedURL(urls)
   }
 
   return (
