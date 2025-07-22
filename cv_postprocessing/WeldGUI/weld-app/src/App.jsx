@@ -2,18 +2,21 @@ import { useCallback, useState, useRef, useEffect } from "react"
 import { useDropzone } from "react-dropzone"
 import "./App.css"
 
-// export default function FilePicker() {
-//   return <div className="container">
-//     <input type='file' className='picker' />
-//   </div>
-// }
-
 export default function MyDropzone() {
   const [dataURL, setDataURL] = useState(null)
   const [uploadedURL, setUploadedURL] = useState(null)
   const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 })
+  const [isEditing, setIsEditing] = useState(false)
+  const [showLengthPopup, setShowLengthPopup] = useState(false)
+  const [lengthValue, setLengthValue] = useState("")
+  const [unitValue, setUnitValue] = useState("")
+  const [referencePoints, setReferencePoints] = useState([{x: 0, y: 0}, {x: 0, y: 0}])
+  const [isDragging, setIsDragging] = useState(null)
+  const [pixelToUnitRatio, setPixelToUnitRatio] = useState(1)
+
   const canvasRef = useRef(null)
   const imageRef = useRef(null)
+
   const onDrop = useCallback(acceptedFiles => {
     acceptedFiles.forEach(file => {
       const reader = new FileReader()
@@ -26,7 +29,8 @@ export default function MyDropzone() {
       reader.readAsDataURL(file)
     })
   }, [])
-useEffect(() => {
+
+  useEffect(() => {
     if (imageRef.current && dataURL) {
       const img = new Image()
       img.onload = () => {
@@ -41,151 +45,246 @@ useEffect(() => {
 
   useEffect(() => {
     if (uploadedURL && canvasRef.current && imageDimensions.width > 0) {
+      // Initialize reference points from the server response
+      const scaleParams = uploadedURL[0].scale_params
+      const newPoints = [
+        { x: scaleParams.reference_line[0][0], y: scaleParams.reference_line[0][1] },
+        { x: scaleParams.reference_line[1][0], y: scaleParams.reference_line[1][1] }
+      ]
+      setReferencePoints(newPoints)
+      setPixelToUnitRatio(scaleParams.le)
+
+      // Calculate initial length
+      const dx = newPoints[1].x - newPoints[0].x
+      const dy = newPoints[1].y - newPoints[0].y
+      const pixelLength = Math.sqrt(dx * dx + dy * dy)
+      const realLength = pixelLength * scaleParams.le
+
+      setLengthValue(realLength.toFixed(2))
+      setUnitValue(scaleParams.unit)
+
       drawReferenceLine()
     }
   }, [uploadedURL, imageDimensions])
 
+  useEffect(() => {
+    if (canvasRef.current && imageDimensions.width > 0 && referencePoints[0].x !== 0) {
+      drawReferenceLine()
+    }
+  }, [referencePoints, isEditing])
+
   const drawReferenceLine = () => {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
-
-    // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-    const scaleParams = uploadedURL[0].scale_params
-    const [point1, point2] = scaleParams.reference_line
+    const point1 = referencePoints[0]
+    const point2 = referencePoints[1]
 
     // Draw the reference line
     ctx.beginPath()
-    ctx.moveTo(point1[0], point1[1])
-    ctx.lineTo(point2[0], point2[1])
-    ctx.strokeStyle = '#00FFFF'
+    ctx.moveTo(point1.x, point1.y)
+    ctx.lineTo(point2.x, point2.y)
+    ctx.strokeStyle = isEditing ? '#FFA500' : '#00FFFF' // Orange when editing, cyan otherwise
     ctx.lineWidth = 5
     ctx.stroke()
 
     // Calculate the length in real units
-    const dx = point2[0] - point1[0]
-    const dy = point2[1] - point1[1]
+    const dx = point2.x - point1.x
+    const dy = point2.y - point1.y
     const pixelLength = Math.sqrt(dx * dx + dy * dy)
-    const realLength = pixelLength * scaleParams.le
+    const realLength = pixelLength * pixelToUnitRatio
 
     // Draw the scale text
-    const midX = (point1[0] + point2[0]) / 2
-    const midY = (point1[1] + point2[1]) / 2
-    const text = `${realLength.toFixed(2)} ${scaleParams.unit}`;
-    const textWidth = ctx.measureText(text).width;
+    const midX = (point1.x + point2.x) / 2
+    const midY = (point1.y + point2.y) / 2
+    const text = `${realLength.toFixed(2)} ${unitValue}`
+    const textWidth = ctx.measureText(text).width
     const textY = midY - 10
     ctx.font = '60px Arial'
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-
-//     ctx.fillRect(midX - textWidth / 2 - 5, textY - 60, textWidth + 10, 30);
-
-      // White text for readability
-    ctx.fillStyle = '#FFFFFF';
-    ctx.textAlign = 'center';
-
-
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+    ctx.fillStyle = '#FFFFFF'
+    ctx.textAlign = 'center'
     ctx.fillText(text, midX, textY)
 
-    // Draw small perpendicular lines at the ends
-    const lineLength = 10
-    const angle = Math.atan2(dy, dx)
-
-    // Perpendicular angle
-    const perpAngle = angle + Math.PI / 2
-
     // Draw end markers
-    drawEndMarker(ctx, point1[0], point1[1], perpAngle, lineLength)
-    drawEndMarker(ctx, point2[0], point2[1], perpAngle, lineLength)
+    const angle = Math.atan2(dy, dx)
+    const perpAngle = angle + Math.PI / 2
+    const lineLength = 10
+
+    drawEndMarker(ctx, point1.x, point1.y, perpAngle, lineLength)
+    drawEndMarker(ctx, point2.x, point2.y, perpAngle, lineLength)
   }
 
- const drawEndMarker = (ctx, x, y, angle, length) => {
-     // Draw the surrounding circle
-     ctx.beginPath();
-     ctx.arc(x, y, length * 1.2, 0, Math.PI * 2);
-     ctx.strokeStyle = '#00FFFF';
-     ctx.lineWidth = 3;
-     ctx.stroke();
+  const drawEndMarker = (ctx, x, y, angle, length) => {
+    ctx.beginPath()
+    ctx.arc(x, y, length * 1.2, 0, Math.PI * 2)
+    ctx.strokeStyle = isEditing ? '#FFA500' : '#00FFFF'
+    ctx.lineWidth = 3
+    ctx.stroke()
 
-     // Draw an "X" inside the circle (two crossed lines at 45° and -45°)
-     const xLength = length * 0.8; // Slightly smaller than the circle radius
+    const xLength = length * 0.8
+    ctx.beginPath()
+    ctx.moveTo(x - xLength * Math.cos(angle + Math.PI / 4), y - xLength * Math.sin(angle + Math.PI / 4))
+    ctx.lineTo(x + xLength * Math.cos(angle + Math.PI / 4), y + xLength * Math.sin(angle + Math.PI / 4))
+    ctx.strokeStyle = isEditing ? '#FFA500' : '#00FFFF'
+    ctx.lineWidth = 3
+    ctx.stroke()
 
-     // First diagonal line (top-left to bottom-right)
-     ctx.beginPath();
-     ctx.moveTo(x - xLength * Math.cos(angle + Math.PI / 4), y - xLength * Math.sin(angle + Math.PI / 4));
-     ctx.lineTo(x + xLength * Math.cos(angle + Math.PI / 4), y + xLength * Math.sin(angle + Math.PI / 4));
-     ctx.strokeStyle = '#00FFFF';
-     ctx.lineWidth = 3; // Slightly thinner than the circle
-     ctx.stroke();
-
-     // Second diagonal line (top-right to bottom-left)
-     ctx.beginPath();
-     ctx.moveTo(x - xLength * Math.cos(angle - Math.PI / 4), y - xLength * Math.sin(angle - Math.PI / 4));
-     ctx.lineTo(x + xLength * Math.cos(angle - Math.PI / 4), y + xLength * Math.sin(angle - Math.PI / 4));
-     ctx.strokeStyle = '#00FFFF';
-     ctx.lineWidth = 3;
-     ctx.stroke();
- };
-
-  const {
-    getRootProps,
-    acceptedFiles,
-    getInputProps,
-    isDragActive,
-
-  } = useDropzone({ onDrop,  multiple:true })
-
-//   const selectedFile = acceptedFiles[0]
-const uploadImage = async () => {
-  const urls = [];
-  for (let file of acceptedFiles) {
-    const formData = new FormData();
-    formData.append("image", file);
-
-    // Send to `/api/get_scale_params` instead of `/api/predict`
-    const res = await fetch(`http://localhost:5000/api/get_scale_params`, {
-      method: "POST",
-      body: formData,
-    });
-    const data = await res.json();
-    urls.push(data); // Store the entire response (not just URL)
-
-    // Log the scale parameters to console
-    console.log("Scale Params:", data.scale_params);
+    ctx.beginPath()
+    ctx.moveTo(x - xLength * Math.cos(angle - Math.PI / 4), y - xLength * Math.sin(angle - Math.PI / 4))
+    ctx.lineTo(x + xLength * Math.cos(angle - Math.PI / 4), y + xLength * Math.sin(angle - Math.PI / 4))
+    ctx.strokeStyle = isEditing ? '#FFA500' : '#00FFFF'
+    ctx.lineWidth = 3
+    ctx.stroke()
   }
-  setUploadedURL(urls); // Now stores the full response (including scale_params)
-};
+
+  const handleCanvasMouseDown = (e) => {
+    if (!isEditing) return
+
+    const canvas = canvasRef.current
+    const rect = canvas.getBoundingClientRect()
+    const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
+    const x = (e.clientX - rect.left) * scaleX
+    const y = (e.clientY - rect.top) * scaleY
+
+    // Check if mouse is near any of the reference points
+    const threshold = 20
+    for (let i = 0; i < referencePoints.length; i++) {
+      const point = referencePoints[i]
+      const distance = Math.sqrt(Math.pow(x - point.x, 2) + Math.pow(y - point.y, 2))
+      if (distance < threshold) {
+        setIsDragging(i)
+        return
+      }
+    }
+  }
+
+  const handleCanvasMouseMove = (e) => {
+    if (!isEditing || isDragging === null) return
+
+    const canvas = canvasRef.current
+    const rect = canvas.getBoundingClientRect()
+    const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
+    const x = (e.clientX - rect.left) * scaleX
+    const y = (e.clientY - rect.top) * scaleY
+
+    const newPoints = [...referencePoints]
+    newPoints[isDragging] = { x, y }
+    setReferencePoints(newPoints)
+  }
+
+  const handleCanvasMouseUp = () => {
+    setIsDragging(null)
+  }
+
+  const handleAcceptLine = () => {
+    // Calculate the current length to show in the popup
+    const point1 = referencePoints[0]
+    const point2 = referencePoints[1]
+    const dx = point2.x - point1.x
+    const dy = point2.y - point1.y
+    const pixelLength = Math.sqrt(dx * dx + dy * dy)
+    const realLength = pixelLength * pixelToUnitRatio
+
+    setLengthValue(realLength.toFixed(2))
+    setShowLengthPopup(true)
+  }
+
+  const handleSaveLength = () => {
+    setShowLengthPopup(false)
+    setIsEditing(false)
+    // Here you would typically send the updated values to your backend
+    console.log("Saved length:", lengthValue, unitValue)
+  }
+
+  const { getRootProps, acceptedFiles, getInputProps, isDragActive } = useDropzone({ onDrop, multiple: true })
+
+  const uploadImage = async () => {
+    const urls = []
+    for (let file of acceptedFiles) {
+      const formData = new FormData()
+      formData.append("image", file)
+
+      const res = await fetch(`http://localhost:5000/api/get_scale_params`, {
+        method: "POST",
+        body: formData,
+      })
+      const data = await res.json()
+      urls.push(data)
+    }
+    setUploadedURL(urls)
+  }
 
   return (
     <div className="container">
       <div className="zone">
-      {dataURL ? (
-                <div className="selected">
-                  <div style={{ position: 'relative' }}>
-                    <img
-                      ref={imageRef}
-                      src={dataURL}
-                      style={{ maxWidth: '100%', height: 'auto' }}
-                      alt="Uploaded"
-                    />
-                    {uploadedURL && imageDimensions.width > 0 && (
-                      <canvas
-                        ref={canvasRef}
-                        width={imageDimensions.width}
-                        height={imageDimensions.height}
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: '100%'
-                        }}
-                      />
-                    )}
-                  </div>
+        {dataURL ? (
+          <div className="selected">
+            <div style={{ position: 'relative' }}>
+              <img
+                ref={imageRef}
+                src={dataURL}
+                style={{ maxWidth: '100%', height: 'auto' }}
+                alt="Uploaded"
+              />
+              {uploadedURL && imageDimensions.width > 0 && (
+                <canvas
+                  ref={canvasRef}
+                  width={imageDimensions.width}
+                  height={imageDimensions.height}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    cursor: isEditing ? 'pointer' : 'default'
+                  }}
+                  onMouseDown={handleCanvasMouseDown}
+                  onMouseMove={handleCanvasMouseMove}
+                  onMouseUp={handleCanvasMouseUp}
+                  onMouseLeave={handleCanvasMouseUp}
+                />
+              )}
+            </div>
             <div className="actions">
               {uploadedURL ? (
-                <span className="uploaded-txt">Uploaded!</span>
+                <>
+                  {!isEditing ? (
+                    <>
+                      <button
+                        onClick={() => setIsEditing(true)}
+                        className="edit-btn"
+                      >
+                        Edit Line
+                      </button>
+                      <button
+                        onClick={handleAcceptLine}
+                        className="accept-btn"
+                      >
+                        Accept
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setIsEditing(false)}
+                        className="cancel-btn"
+                      >
+                        Cancel Edit
+                      </button>
+                      <button
+                        onClick={handleAcceptLine}
+                        className="accept-btn"
+                      >
+                        Save
+                      </button>
+                    </>
+                  )}
+                </>
               ) : (
                 <button
                   onClick={uploadImage}
@@ -195,7 +294,11 @@ const uploadImage = async () => {
                 </button>
               )}
               <button
-                onClick={() => setDataURL(null)}
+                onClick={() => {
+                  setDataURL(null)
+                  setUploadedURL(null)
+                  setIsEditing(false)
+                }}
                 className="cancel-btn"
               >
                 Cancel
@@ -226,11 +329,40 @@ const uploadImage = async () => {
         )}
       </div>
       {uploadedURL && (
-             <div className="scale-params-display">
-               <h3>Scale Parameters:</h3>
-               <pre>{JSON.stringify(uploadedURL[0], null, 2)}</pre>
-             </div>
-           )}
+        <div className="scale-params-display">
+          <h3>Scale Parameters:</h3>
+          <pre>{JSON.stringify(uploadedURL[0], null, 2)}</pre>
+        </div>
+      )}
+
+      {showLengthPopup && (
+        <div className="popup-overlay">
+          <div className="length-popup">
+            <h3>Confirm Reference Length</h3>
+            <div className="input-group">
+              <input
+                type="number"
+                value={lengthValue}
+                onChange={(e) => setLengthValue(e.target.value)}
+              />
+              <select
+                value={unitValue}
+                onChange={(e) => setUnitValue(e.target.value)}
+              >
+                <option value="mm">mm</option>
+                <option value="cm">cm</option>
+                <option value="m">m</option>
+                <option value="in">in</option>
+                <option value="ft">ft</option>
+              </select>
+            </div>
+            <div className="popup-buttons">
+              <button onClick={() => setShowLengthPopup(false)}>Cancel</button>
+              <button onClick={handleSaveLength} className="primary">OK</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
