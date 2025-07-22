@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react"
+import { useCallback, useState, useRef, useEffect } from "react"
 import { useDropzone } from "react-dropzone"
 import "./App.css"
 
@@ -11,7 +11,9 @@ import "./App.css"
 export default function MyDropzone() {
   const [dataURL, setDataURL] = useState(null)
   const [uploadedURL, setUploadedURL] = useState(null)
-
+  const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 })
+  const canvasRef = useRef(null)
+  const imageRef = useRef(null)
   const onDrop = useCallback(acceptedFiles => {
     acceptedFiles.forEach(file => {
       const reader = new FileReader()
@@ -24,6 +26,106 @@ export default function MyDropzone() {
       reader.readAsDataURL(file)
     })
   }, [])
+useEffect(() => {
+    if (imageRef.current && dataURL) {
+      const img = new Image()
+      img.onload = () => {
+        setImageDimensions({
+          width: img.width,
+          height: img.height
+        })
+      }
+      img.src = dataURL
+    }
+  }, [dataURL])
+
+  useEffect(() => {
+    if (uploadedURL && canvasRef.current && imageDimensions.width > 0) {
+      drawReferenceLine()
+    }
+  }, [uploadedURL, imageDimensions])
+
+  const drawReferenceLine = () => {
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+    const scaleParams = uploadedURL[0].scale_params
+    const [point1, point2] = scaleParams.reference_line
+
+    // Draw the reference line
+    ctx.beginPath()
+    ctx.moveTo(point1[0], point1[1])
+    ctx.lineTo(point2[0], point2[1])
+    ctx.strokeStyle = '#00FFFF'
+    ctx.lineWidth = 5
+    ctx.stroke()
+
+    // Calculate the length in real units
+    const dx = point2[0] - point1[0]
+    const dy = point2[1] - point1[1]
+    const pixelLength = Math.sqrt(dx * dx + dy * dy)
+    const realLength = pixelLength * scaleParams.le
+
+    // Draw the scale text
+    const midX = (point1[0] + point2[0]) / 2
+    const midY = (point1[1] + point2[1]) / 2
+    const text = `${realLength.toFixed(2)} ${scaleParams.unit}`;
+    const textWidth = ctx.measureText(text).width;
+    const textY = midY - 10
+    ctx.font = '60px Arial'
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+
+//     ctx.fillRect(midX - textWidth / 2 - 5, textY - 60, textWidth + 10, 30);
+
+      // White text for readability
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textAlign = 'center';
+
+
+    ctx.fillText(text, midX, textY)
+
+    // Draw small perpendicular lines at the ends
+    const lineLength = 10
+    const angle = Math.atan2(dy, dx)
+
+    // Perpendicular angle
+    const perpAngle = angle + Math.PI / 2
+
+    // Draw end markers
+    drawEndMarker(ctx, point1[0], point1[1], perpAngle, lineLength)
+    drawEndMarker(ctx, point2[0], point2[1], perpAngle, lineLength)
+  }
+
+ const drawEndMarker = (ctx, x, y, angle, length) => {
+     // Draw the surrounding circle
+     ctx.beginPath();
+     ctx.arc(x, y, length * 1.2, 0, Math.PI * 2);
+     ctx.strokeStyle = '#00FFFF';
+     ctx.lineWidth = 3;
+     ctx.stroke();
+
+     // Draw an "X" inside the circle (two crossed lines at 45° and -45°)
+     const xLength = length * 0.8; // Slightly smaller than the circle radius
+
+     // First diagonal line (top-left to bottom-right)
+     ctx.beginPath();
+     ctx.moveTo(x - xLength * Math.cos(angle + Math.PI / 4), y - xLength * Math.sin(angle + Math.PI / 4));
+     ctx.lineTo(x + xLength * Math.cos(angle + Math.PI / 4), y + xLength * Math.sin(angle + Math.PI / 4));
+     ctx.strokeStyle = '#00FFFF';
+     ctx.lineWidth = 3; // Slightly thinner than the circle
+     ctx.stroke();
+
+     // Second diagonal line (top-right to bottom-left)
+     ctx.beginPath();
+     ctx.moveTo(x - xLength * Math.cos(angle - Math.PI / 4), y - xLength * Math.sin(angle - Math.PI / 4));
+     ctx.lineTo(x + xLength * Math.cos(angle - Math.PI / 4), y + xLength * Math.sin(angle - Math.PI / 4));
+     ctx.strokeStyle = '#00FFFF';
+     ctx.lineWidth = 3;
+     ctx.stroke();
+ };
 
   const {
     getRootProps,
@@ -34,29 +136,53 @@ export default function MyDropzone() {
   } = useDropzone({ onDrop,  multiple:true })
 
 //   const selectedFile = acceptedFiles[0]
-
-  const uploadImage = async () => {
-const urls = []
+const uploadImage = async () => {
+  const urls = [];
   for (let file of acceptedFiles) {
-    const formData = new FormData()
-    formData.append("image", file)
+    const formData = new FormData();
+    formData.append("image", file);
 
-    const res = await fetch(`http://localhost:5000/api/predict`, {
+    // Send to `/api/get_scale_params` instead of `/api/predict`
+    const res = await fetch(`http://localhost:5000/api/get_scale_params`, {
       method: "POST",
       body: formData,
-    })
-    const data = await res.json()
-    urls.push(data.url)
+    });
+    const data = await res.json();
+    urls.push(data); // Store the entire response (not just URL)
+
+    // Log the scale parameters to console
+    console.log("Scale Params:", data.scale_params);
   }
-  setUploadedURL(urls)
-  }
+  setUploadedURL(urls); // Now stores the full response (including scale_params)
+};
 
   return (
     <div className="container">
       <div className="zone">
-        {dataURL ? (
-          <div className="selected">
-            <img src={dataURL} />
+      {dataURL ? (
+                <div className="selected">
+                  <div style={{ position: 'relative' }}>
+                    <img
+                      ref={imageRef}
+                      src={dataURL}
+                      style={{ maxWidth: '100%', height: 'auto' }}
+                      alt="Uploaded"
+                    />
+                    {uploadedURL && imageDimensions.width > 0 && (
+                      <canvas
+                        ref={canvasRef}
+                        width={imageDimensions.width}
+                        height={imageDimensions.height}
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%'
+                        }}
+                      />
+                    )}
+                  </div>
             <div className="actions">
               {uploadedURL ? (
                 <span className="uploaded-txt">Uploaded!</span>
@@ -100,10 +226,11 @@ const urls = []
         )}
       </div>
       {uploadedURL && (
-        <a target="_blank" href={uploadedURL}>
-          <span className="uploaded-url">{uploadedURL}</span>
-        </a>
-      )}
+             <div className="scale-params-display">
+               <h3>Scale Parameters:</h3>
+               <pre>{JSON.stringify(uploadedURL[0], null, 2)}</pre>
+             </div>
+           )}
     </div>
   )
 }
