@@ -232,7 +232,7 @@ def process_all_images(config):
     default_le = scale_params.get('le', None)
     default_u = scale_params.get('unit', None)
     default_line = scale_params.get('reference_line', None)
-    
+    print("def",default_le)
     # ... rest of your existing code ...
     
     for key, img in imgs.items():
@@ -241,7 +241,7 @@ def process_all_images(config):
             le, u, line = default_le, default_u, np.array(default_line)
         else:
             le, u, line = get_pixel_real_size(ocr, img)
-        
+        print("le", le)
         result, gost_result = process_single_image(
             key, img, image_path, model1, model2, ocr, 
             output_masked, output_rendered, render, le, u, line

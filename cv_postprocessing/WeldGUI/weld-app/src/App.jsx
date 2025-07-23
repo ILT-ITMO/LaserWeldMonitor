@@ -7,29 +7,74 @@ export default function MyDropzone() {
   const [uploadedURL, setUploadedURL] = useState(null)
   const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 })
   const [isEditing, setIsEditing] = useState(false)
+  const [isProcessed, setIsProcessed] = useState(false)
+
   const [showLengthPopup, setShowLengthPopup] = useState(false)
   const [lengthValue, setLengthValue] = useState("")
   const [unitValue, setUnitValue] = useState("")
   const [referencePoints, setReferencePoints] = useState([{x: 0, y: 0}, {x: 0, y: 0}])
   const [isDragging, setIsDragging] = useState(null)
   const [pixelToUnitRatio, setPixelToUnitRatio] = useState(1)
-
+  const [allFiles, setAllFiles] = useState([]);
+  const [currentFileIndex, setCurrentFileIndex] = useState(0);
+  const [showProcessChoice, setShowProcessChoice] = useState(false);
+  const [processingMode, setProcessingMode] = useState(null); // 'one-by-one' or 'bulk'
   const canvasRef = useRef(null)
   const imageRef = useRef(null)
 
-  const onDrop = useCallback(acceptedFiles => {
-    acceptedFiles.forEach(file => {
-      const reader = new FileReader()
-      reader.onabort = () => console.log("file reading was aborted")
-      reader.onerror = () => console.log("file reading has failed")
-      reader.onload = () => {
-        const binaryStr = reader.result
-        setDataURL(binaryStr)
-      }
-      reader.readAsDataURL(file)
-    })
-  }, [])
+const onDrop = useCallback(acceptedFiles => {
+  if (acceptedFiles.length === 0) return;
 
+  if (acceptedFiles.length === 1) {
+    // Single file - process immediately
+    const reader = new FileReader();
+    reader.onload = () => {
+      setDataURL(reader.result);
+    };
+    reader.readAsDataURL(acceptedFiles[0]);
+  } else {
+    // Multiple files - show choice popup
+    setAllFiles(acceptedFiles);
+    setShowProcessChoice(true);
+  }
+}, []);
+const handleProcessChoice = (choice) => {
+  setProcessingMode(choice);
+  setShowProcessChoice(false);
+
+  if (choice === 'one-by-one') {
+    // Start with first file
+    setCurrentFileIndex(0);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setDataURL(reader.result);
+    };
+    reader.readAsDataURL(allFiles[0]);
+  }
+  // Bulk processing can be implemented later
+};
+const goToNextFile = () => {
+  const nextIndex = currentFileIndex + 1;
+  if (nextIndex < allFiles.length) {
+    setCurrentFileIndex(nextIndex);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setDataURL(reader.result);
+    };
+    reader.readAsDataURL(allFiles[nextIndex]);
+
+    // Reset editing states
+    setUploadedURL(null);
+    setIsEditing(false);
+    setIsProcessed(false);
+    setShowLengthPopup(false);
+    setReferencePoints([{x: 0, y: 0}, {x: 0, y: 0}]);
+  } else {
+    // All files processed
+    setAllFiles([]);
+    setCurrentFileIndex(0);
+  }
+};
   useEffect(() => {
     if (imageRef.current && dataURL) {
       const img = new Image()
@@ -229,13 +274,30 @@ export default function MyDropzone() {
        throw new Error('Failed to update scale parameters');
      }
 
-     const result = await response.json();
-     console.log('Scale parameters updated:', result);
+     // Debugging: Check response type
+     const contentType = response.headers.get('content-type');
+     console.log('Content-Type:', contentType);
 
-     // Close the popup and exit edit mode
-     setShowLengthPopup(false);
-     setIsEditing(false);
+     // Handle image response
+     if (contentType && contentType.includes('image')) {
+       const blob = await response.blob();
+       const imageUrl = URL.createObjectURL(blob);
 
+       // Update state
+       setDataURL(imageUrl);
+       setShowLengthPopup(false);
+       setIsEditing(false);
+       setIsProcessed(true);
+     } else {
+       // Handle non-image response (fallback)
+       const text = await response.text();
+       console.warn("Unexpected response:", text);
+       throw new Error('Server did not return an image');
+     }
+// If processing one by one, prepare for next file
+    if (processingMode === 'one-by-one') {
+      setTimeout(goToNextFile, 1000); // Small delay before next file
+    }
      // Optionally update the local state with the new parameters
      setUploadedURL(prev => {
        const newData = [...prev];
@@ -265,8 +327,11 @@ export default function MyDropzone() {
     const urls = []
     for (let file of acceptedFiles) {
       const formData = new FormData()
-      formData.append("image", file)
+      const fileToUpload = allFiles.length > 0
+         ? allFiles[currentFileIndex]
+         : acceptedFiles[0];
 
+       formData.append("image", fileToUpload);
       const res = await fetch(`http://localhost:5000/api/get_scale_params`, {
         method: "POST",
         body: formData,
@@ -280,6 +345,11 @@ export default function MyDropzone() {
   return (
     <div className="container">
       <div className="zone">
+          {allFiles.length > 1 && processingMode === 'one-by-one' && (
+            <div className="file-counter">
+              File {currentFileIndex + 1} of {allFiles.length}
+            </div>
+          )}
         {dataURL ? (
           <div className="selected">
             <div style={{ position: 'relative' }}>
@@ -309,60 +379,63 @@ export default function MyDropzone() {
                 />
               )}
             </div>
-            <div className="actions">
-              {uploadedURL ? (
-                <>
-                  {!isEditing ? (
-                    <>
-                      <button
-                        onClick={() => setIsEditing(true)}
-                        className="edit-btn"
-                      >
-                        Edit Line
-                      </button>
-                      <button
-                        onClick={handleAcceptLine}
-                        className="accept-btn"
-                      >
-                        Accept
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => setIsEditing(false)}
-                        className="cancel-btn"
-                      >
-                        Cancel Edit
-                      </button>
-                      <button
-                        onClick={handleAcceptLine}
-                        className="accept-btn"
-                      >
-                        Save
-                      </button>
-                    </>
-                  )}
-                </>
-              ) : (
+            {!isProcessed && (
+              <div className="actions">
+                {uploadedURL ? (
+                  <>
+                    {!isEditing ? (
+                      <>
+                        <button
+                          onClick={() => setIsEditing(true)}
+                          className="edit-btn"
+                        >
+                          Edit Line
+                        </button>
+                        <button
+                          onClick={handleAcceptLine}
+                          className="accept-btn"
+                        >
+                          Accept
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => setIsEditing(false)}
+                          className="cancel-btn"
+                        >
+                          Cancel Edit
+                        </button>
+                        <button
+                          onClick={handleAcceptLine}
+                          className="accept-btn"
+                        >
+                          Save
+                        </button>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <button
+                    onClick={uploadImage}
+                    className="upload-btn"
+                  >
+                    Upload
+                  </button>
+                )}
                 <button
-                  onClick={uploadImage}
-                  className="upload-btn"
+                  onClick={() => {
+                    setDataURL(null)
+                    setUploadedURL(null)
+                    setIsEditing(false)
+                    setIsProcessed(false)
+                  }}
+                  className="cancel-btn"
                 >
-                  Upload
+                  Cancel
                 </button>
-              )}
-              <button
-                onClick={() => {
-                  setDataURL(null)
-                  setUploadedURL(null)
-                  setIsEditing(false)
-                }}
-                className="cancel-btn"
-              >
-                Cancel
-              </button>
-            </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="drop-zone" {...getRootProps()}>
@@ -387,13 +460,23 @@ export default function MyDropzone() {
           </div>
         )}
       </div>
-      {uploadedURL && (
-        <div className="scale-params-display">
-          <h3>Scale Parameters:</h3>
-          <pre>{JSON.stringify(uploadedURL[0], null, 2)}</pre>
-        </div>
-      )}
 
+{showProcessChoice && (
+  <div className="popup-overlay">
+    <div className="process-choice-popup">
+      <h3>Multiple Files Detected</h3>
+      <p>How would you like to process these {allFiles.length} files?</p>
+      <div className="choice-buttons">
+        <button onClick={() => handleProcessChoice('one-by-one')}>
+          Process One by One
+        </button>
+        <button onClick={() => handleProcessChoice('bulk')}>
+          Process in Bulk
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       {showLengthPopup && (
         <div className="popup-overlay">
           <div className="length-popup">
