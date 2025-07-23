@@ -193,12 +193,71 @@ export default function MyDropzone() {
     setShowLengthPopup(true)
   }
 
-  const handleSaveLength = () => {
-    setShowLengthPopup(false)
-    setIsEditing(false)
-    // Here you would typically send the updated values to your backend
-    console.log("Saved length:", lengthValue, unitValue)
-  }
+ const handleSaveLength = async () => {
+   try {
+     // Calculate the new pixel-to-unit ratio (le)
+     const point1 = referencePoints[0];
+     const point2 = referencePoints[1];
+     const dx = point2.x - point1.x;
+     const dy = point2.y - point1.y;
+     const pixelLength = Math.sqrt(dx * dx + dy * dy);
+     const newLe = parseFloat(lengthValue) / pixelLength;
+
+     // Prepare the data to send to the backend
+     const requestData = {
+       filename: uploadedURL[0].filename, // Assuming the filename is in the response
+       scale_params: {
+         le: newLe,
+         unit: unitValue,
+         reference_line: [
+           [referencePoints[0].x, referencePoints[0].y],
+           [referencePoints[1].x, referencePoints[1].y]
+         ]
+       }
+     };
+
+     // Send the request to your backend
+     const response = await fetch('http://localhost:5000/api/process_image', {
+       method: 'POST',
+       headers: {
+         'Content-Type': 'application/json',
+       },
+       body: JSON.stringify(requestData)
+     });
+
+     if (!response.ok) {
+       throw new Error('Failed to update scale parameters');
+     }
+
+     const result = await response.json();
+     console.log('Scale parameters updated:', result);
+
+     // Close the popup and exit edit mode
+     setShowLengthPopup(false);
+     setIsEditing(false);
+
+     // Optionally update the local state with the new parameters
+     setUploadedURL(prev => {
+       const newData = [...prev];
+       newData[0] = {
+         ...newData[0],
+         scale_params: {
+           le: newLe,
+           unit: unitValue,
+           reference_line: [
+             [referencePoints[0].x, referencePoints[0].y],
+             [referencePoints[1].x, referencePoints[1].y]
+           ]
+         }
+       };
+       return newData;
+     });
+
+   } catch (error) {
+     console.error('Error updating scale parameters:', error);
+     // You might want to show an error message to the user here
+   }
+ };
 
   const { getRootProps, acceptedFiles, getInputProps, isDragActive } = useDropzone({ onDrop, multiple: true })
 
@@ -353,7 +412,6 @@ export default function MyDropzone() {
                 <option value="cm">cm</option>
                 <option value="m">m</option>
                 <option value="in">in</option>
-                <option value="ft">ft</option>
               </select>
             </div>
             <div className="popup-buttons">

@@ -14,7 +14,7 @@ from src.contours import *
 from src.ocr import get_pixel_real_size
 from src.render import *
 from src.gost import check_gosts
-
+import argparse
 # Set environment variable at the beginning
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
@@ -55,7 +55,7 @@ def process_single_image(key, img, image_path, model1, model2, ocr, output_maske
         mask2 = cv2.morphologyEx(mask2, cv2.MORPH_OPEN, kernel, iterations=3)
         mask2 = cv2.morphologyEx(mask2, cv2.MORPH_CLOSE, kernel, iterations=3)
 
-        cv2.imwrite('mask2.jpg', mask2)
+      
 
         # find contours
         main_object_con = n_max_contours(mask1)  # all the contours for the main part
@@ -160,7 +160,22 @@ def process_single_image(key, img, image_path, model1, model2, ocr, output_maske
         
         cv2.imwrite(str(output_rendered / f'{key}.jpg'), plot)
         cv2.imwrite(str(output_masked / f'{key}.jpg'), render_mask(img, mask1))
+        print(f"Saved rendered image to: {output_rendered}")
+        print(f"Saved masked image to: {output_masked}")
         
+        # Verify files exist
+        print(f"Rendered image exists: {os.path.exists(output_rendered)}")
+        print(f"Masked image exists: {os.path.exists(output_masked)}")
+        
+        # Print image stats if they exist
+        if os.path.exists(output_rendered):
+            rendered_size = os.path.getsize(output_rendered)
+            print(f"Rendered image size: {rendered_size} bytes")
+            
+        if os.path.exists(output_masked):
+            masked_size = os.path.getsize(output_masked)
+            print(f"Masked image size: {masked_size} bytes")
+
         return result, check_gosts(result)
     
     except cv2.error as e:
