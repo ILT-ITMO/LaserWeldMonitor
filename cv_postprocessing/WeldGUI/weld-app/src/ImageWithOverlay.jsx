@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 
-const ImageWithOverlay = ({ imageUrl, linesData }) => {
+const ImageWithOverlay = ({ imageUrl, linesData, scaleParams }) => {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -19,12 +19,34 @@ const ImageWithOverlay = ({ imageUrl, linesData }) => {
 
       // Draw the image
       ctx.drawImage(img, 0, 0);
+      if (linesData.misalignment) {
+        drawText(
+          ctx,
+          `Misalignment: ${linesData.misalignment[0].toFixed(2)} ${scaleParams.u}`,
+          20,  // x position
+          40,  // y position
+          'red',
+          50
+        );
+      }
 
       // Draw the lines
       drawLines(ctx, linesData);
     };
   }, [imageUrl, linesData]);
+const calculateLength = (point1, point2) => {
+  const dx = point2[0] - point1[0];
+  const dy = point2[1] - point1[1];
+  const pixelLength = Math.sqrt(dx * dx + dy * dy);
+console.log(scaleParams);
+  return (pixelLength * scaleParams.le).toFixed(2); // Convert to real units
+};
 
+const drawText = (ctx, text, x, y, color = 'black', fontSize = 20) => {
+  ctx.font = `${fontSize}px Arial`;
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
+};
   const drawLines = (ctx, linesData) => {
     // Configure line style
     ctx.lineWidth = 7;
@@ -67,6 +89,13 @@ const ImageWithOverlay = ({ imageUrl, linesData }) => {
     ctx.moveTo(point1[0], point1[1]);
     ctx.lineTo(point2[0], point2[1]);
     ctx.stroke();
+
+    const midX = (point1[0] + point2[0]) / 2;
+    const midY = (point1[1] + point2[1]) / 2;
+
+      // Draw length text
+    const length = calculateLength(point1, point2);
+    drawText(ctx, `${length} ${scaleParams.u}`, midX, midY, 'white', 40);
   };
 
   const drawPolyline = (ctx, points) => {

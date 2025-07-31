@@ -442,10 +442,21 @@ export default function MyDropzone() {
         {dataURL ? (
           <div className="selected">
             {isProcessed && analysisResults ? (
-              <ImageWithOverlay
-                imageUrl={dataURL}
-                linesData={analysisResults.images[0].linesData}
-              />
+           (() => {
+             console.log("Full analysis results:", analysisResults);
+             console.log("Scale parameters:", analysisResults.images[0].scale_params);
+             console.log("Lines data:", analysisResults.images[0].linesData);
+             console.log("Misalignment:", analysisResults.images[0].misalignment);
+
+             return (
+               <ImageWithOverlay
+                 imageUrl={dataURL}
+                 linesData={analysisResults.images[0].linesData}
+                 scaleParams={analysisResults.images[0].scaleParams}
+
+               />
+             );
+           })()
             ) : (
               <div style={{ position: "relative" }}>
                 <img
