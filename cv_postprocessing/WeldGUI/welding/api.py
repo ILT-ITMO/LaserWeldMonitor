@@ -31,13 +31,13 @@ ocr = PaddleOCR(lang="en", use_angle_cls=False, show_log=False)
 
 @app.route('/api/get_scale_params', methods=['POST'])
 def get_scale_params():
-    for filename in os.listdir(UPLOAD_FOLDER):
-        file_path = os.path.join(UPLOAD_FOLDER, filename)
-        try:
-            if os.path.isfile(file_path):
-                os.unlink(file_path)
-        except Exception as e:
-            print(f"Error deleting file {file_path}: {e}")
+    # for filename in os.listdir(UPLOAD_FOLDER):
+    #     file_path = os.path.join(UPLOAD_FOLDER, filename)
+    #     try:
+    #         if os.path.isfile(file_path):
+    #             os.unlink(file_path)
+    #     except Exception as e:
+    #         print(f"Error deleting file {file_path}: {e}")
     if 'image' not in request.files:
         return jsonify({"error": "No image uploaded"}), 400
     
@@ -77,8 +77,8 @@ def process_image():
         if not data or 'filename' not in data or 'scale_params' not in data:
             logger.error("Invalid request data")
             return jsonify({"error": "Invalid request data"}), 400
-        
-        file_path = os.path.join(UPLOAD_FOLDER, data['filename'])
+        print("sggg",data['filename'])
+        file_path = os.path.normpath(os.path.join(UPLOAD_FOLDER, data['filename']))
         if not os.path.exists(file_path):
             logger.error(f"File not found: {file_path}")
             return jsonify({"error": "File not found"}), 404
@@ -124,7 +124,7 @@ def process_image():
             "image_reference": data['filename'],  # Same reference you received
             "scale_params": data['scale_params']  # Return the scale params back for verification
         }
-        print(response_data)
+        # print(response_data)
         return jsonify(response_data)
         # return send_file(str(Path("output/rendered") / f"{output_base}.jpg"), mimetype='image/jpeg')
         
