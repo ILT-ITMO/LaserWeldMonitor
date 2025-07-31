@@ -1,400 +1,491 @@
-import { useCallback, useState, useRef, useEffect } from "react"
-import { useDropzone } from "react-dropzone"
-import "./App.css"
+import { useCallback, useState, useRef, useEffect } from "react";
+import { useDropzone } from "react-dropzone";
+import "./App.css";
+import JSZip from "jszip";
+import ImageWithOverlay from "./ImageWithOverlay";
 
 export default function MyDropzone() {
-  const [dataURL, setDataURL] = useState(null)
-  const [uploadedURL, setUploadedURL] = useState(null)
-  const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 })
-  const [isEditing, setIsEditing] = useState(false)
-  const [isProcessed, setIsProcessed] = useState(false)
-
-  const [showLengthPopup, setShowLengthPopup] = useState(false)
-  const [lengthValue, setLengthValue] = useState("")
-  const [unitValue, setUnitValue] = useState("")
-  const [referencePoints, setReferencePoints] = useState([{x: 0, y: 0}, {x: 0, y: 0}])
-  const [isDragging, setIsDragging] = useState(null)
-  const [pixelToUnitRatio, setPixelToUnitRatio] = useState(1)
+  const [dataURL, setDataURL] = useState(null);
+  const [uploadedURL, setUploadedURL] = useState(null);
+  const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
+  const [isEditing, setIsEditing] = useState(false);
+  const [isProcessed, setIsProcessed] = useState(false);
+  const [showLengthPopup, setShowLengthPopup] = useState(false);
+  const [lengthValue, setLengthValue] = useState("");
+  const [unitValue, setUnitValue] = useState("");
+  const [referencePoints, setReferencePoints] = useState([
+    { x: 0, y: 0 },
+    { x: 0, y: 0 },
+  ]);
+  const [isDragging, setIsDragging] = useState(null);
+  const [pixelToUnitRatio, setPixelToUnitRatio] = useState(1);
   const [allFiles, setAllFiles] = useState([]);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [showProcessChoice, setShowProcessChoice] = useState(false);
-  const [processingMode, setProcessingMode] = useState(null); // 'one-by-one' or 'bulk'
-  const canvasRef = useRef(null)
-  const imageRef = useRef(null)
+  const [processingMode, setProcessingMode] = useState(null);
+  const [bulkResults, setBulkResults] = useState([]);
+  const [currentBulkIndex, setCurrentBulkIndex] = useState(0);
+  const [analysisResults, setAnalysisResults] = useState(null);
+  const canvasRef = useRef(null);
+  const imageRef = useRef(null);
 
-const onDrop = useCallback(acceptedFiles => {
-  if (acceptedFiles.length === 0) return;
+  const onDrop = useCallback((acceptedFiles) => {
+    if (acceptedFiles.length === 0) return;
 
-  if (acceptedFiles.length === 1) {
-    // Single file - process immediately
-    const reader = new FileReader();
-    reader.onload = () => {
-      setDataURL(reader.result);
-    };
-    reader.readAsDataURL(acceptedFiles[0]);
-  } else {
-    // Multiple files - show choice popup
-    setAllFiles(acceptedFiles);
-    setShowProcessChoice(true);
-  }
-}, []);
-const handleProcessChoice = (choice) => {
-  setProcessingMode(choice);
-  setShowProcessChoice(false);
+    if (acceptedFiles.length === 1) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setDataURL(reader.result);
+      };
+      reader.readAsDataURL(acceptedFiles[0]);
+    } else {
+      setAllFiles(acceptedFiles);
+      setShowProcessChoice(true);
+    }
+  }, []);
 
-  if (choice === 'one-by-one') {
-    // Start with first file
-    setCurrentFileIndex(0);
-    const reader = new FileReader();
-    reader.onload = () => {
-      setDataURL(reader.result);
-    };
-    reader.readAsDataURL(allFiles[0]);
-  }
-  // Bulk processing can be implemented later
-};
-const goToNextFile = () => {
-  const nextIndex = currentFileIndex + 1;
-  if (nextIndex < allFiles.length) {
-    setCurrentFileIndex(nextIndex);
-    const reader = new FileReader();
-    reader.onload = () => {
-      setDataURL(reader.result);
-    };
-    reader.readAsDataURL(allFiles[nextIndex]);
+  const handleProcessChoice = (choice) => {
+    setProcessingMode(choice);
+    setShowProcessChoice(false);
 
-    // Reset editing states
-    setUploadedURL(null);
-    setIsEditing(false);
-    setIsProcessed(false);
-    setShowLengthPopup(false);
-    setReferencePoints([{x: 0, y: 0}, {x: 0, y: 0}]);
-  } else {
-    // All files processed
-    setAllFiles([]);
-    setCurrentFileIndex(0);
-  }
-};
+    if (choice === "one-by-one") {
+      setCurrentFileIndex(0);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setDataURL(reader.result);
+      };
+      reader.readAsDataURL(allFiles[0]);
+    } else {
+      setCurrentFileIndex(0);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setDataURL(reader.result);
+      };
+      reader.readAsDataURL(allFiles[0]);
+    }
+  };
+
+  const goToNextFile = () => {
+    const nextIndex = currentFileIndex + 1;
+    if (nextIndex < allFiles.length) {
+      setCurrentFileIndex(nextIndex);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setDataURL(reader.result);
+      };
+      reader.readAsDataURL(allFiles[nextIndex]);
+
+      setUploadedURL(null);
+      setIsEditing(false);
+      setIsProcessed(false);
+      setShowLengthPopup(false);
+      setReferencePoints([
+        { x: 0, y: 0 },
+        { x: 0, y: 0 },
+      ]);
+    } else {
+      setAllFiles([]);
+      setCurrentFileIndex(0);
+    }
+  };
+
   useEffect(() => {
     if (imageRef.current && dataURL) {
-      const img = new Image()
+      const img = new Image();
       img.onload = () => {
         setImageDimensions({
           width: img.width,
-          height: img.height
-        })
-      }
-      img.src = dataURL
+          height: img.height,
+        });
+      };
+      img.src = dataURL;
     }
-  }, [dataURL])
+  }, [dataURL]);
 
   useEffect(() => {
     if (uploadedURL && canvasRef.current && imageDimensions.width > 0) {
-      // Initialize reference points from the server response
-      const scaleParams = uploadedURL[0].scale_params
+      const scaleParams = uploadedURL[0].scale_params;
       const newPoints = [
         { x: scaleParams.reference_line[0][0], y: scaleParams.reference_line[0][1] },
-        { x: scaleParams.reference_line[1][0], y: scaleParams.reference_line[1][1] }
-      ]
-      setReferencePoints(newPoints)
-      setPixelToUnitRatio(scaleParams.le)
+        { x: scaleParams.reference_line[1][0], y: scaleParams.reference_line[1][1] },
+      ];
+      setReferencePoints(newPoints);
+      setPixelToUnitRatio(scaleParams.le);
 
-      // Calculate initial length
-      const dx = newPoints[1].x - newPoints[0].x
-      const dy = newPoints[1].y - newPoints[0].y
-      const pixelLength = Math.sqrt(dx * dx + dy * dy)
-      const realLength = pixelLength * scaleParams.le
+      const dx = newPoints[1].x - newPoints[0].x;
+      const dy = newPoints[1].y - newPoints[0].y;
+      const pixelLength = Math.sqrt(dx * dx + dy * dy);
+      const realLength = pixelLength * scaleParams.le;
 
-      setLengthValue(realLength.toFixed(2))
-      setUnitValue(scaleParams.unit)
+      setLengthValue(realLength.toFixed(2));
+      setUnitValue(scaleParams.unit);
 
-      drawReferenceLine()
+      drawReferenceLine();
     }
-  }, [uploadedURL, imageDimensions])
+  }, [uploadedURL, imageDimensions]);
 
   useEffect(() => {
     if (canvasRef.current && imageDimensions.width > 0 && referencePoints[0].x !== 0) {
-      drawReferenceLine()
+      drawReferenceLine();
     }
-  }, [referencePoints, isEditing])
+  }, [referencePoints, isEditing]);
 
   const drawReferenceLine = () => {
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const point1 = referencePoints[0]
-    const point2 = referencePoints[1]
+    const point1 = referencePoints[0];
+    const point2 = referencePoints[1];
 
-    // Draw the reference line
-    ctx.beginPath()
-    ctx.moveTo(point1.x, point1.y)
-    ctx.lineTo(point2.x, point2.y)
-    ctx.strokeStyle = isEditing ? '#FFA500' : '#00FFFF' // Orange when editing, cyan otherwise
-    ctx.lineWidth = 5
-    ctx.stroke()
+    ctx.beginPath();
+    ctx.moveTo(point1.x, point1.y);
+    ctx.lineTo(point2.x, point2.y);
+    ctx.strokeStyle = isEditing ? "#FFA500" : "#00FFFF";
+    ctx.lineWidth = 5;
+    ctx.stroke();
 
-    // Calculate the length in real units
-    const dx = point2.x - point1.x
-    const dy = point2.y - point1.y
-    const pixelLength = Math.sqrt(dx * dx + dy * dy)
-    const realLength = pixelLength * pixelToUnitRatio
+    const dx = point2.x - point1.x;
+    const dy = point2.y - point1.y;
+    const pixelLength = Math.sqrt(dx * dx + dy * dy);
+    const realLength = pixelLength * pixelToUnitRatio;
 
-    // Draw the scale text
-    const midX = (point1.x + point2.x) / 2
-    const midY = (point1.y + point2.y) / 2
-    const text = `${realLength.toFixed(2)} ${unitValue}`
-    const textWidth = ctx.measureText(text).width
-    const textY = midY - 10
-    ctx.font = '60px Arial'
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
-    ctx.fillStyle = '#FFFFFF'
-    ctx.textAlign = 'center'
-    ctx.fillText(text, midX, textY)
+    const midX = (point1.x + point2.x) / 2;
+    const midY = (point1.y + point2.y) / 2;
+    const text = `${realLength.toFixed(2)} ${unitValue}`;
+    ctx.font = "60px Arial";
+    ctx.fillStyle = "#FFFFFF";
+    ctx.textAlign = "center";
+    ctx.fillText(text, midX, midY - 10);
 
-    // Draw end markers
-    const angle = Math.atan2(dy, dx)
-    const perpAngle = angle + Math.PI / 2
-    const lineLength = 10
+    const angle = Math.atan2(dy, dx);
+    const perpAngle = angle + Math.PI / 2;
+    const lineLength = 10;
 
-    drawEndMarker(ctx, point1.x, point1.y, perpAngle, lineLength)
-    drawEndMarker(ctx, point2.x, point2.y, perpAngle, lineLength)
-  }
+    drawEndMarker(ctx, point1.x, point1.y, perpAngle, lineLength);
+    drawEndMarker(ctx, point2.x, point2.y, perpAngle, lineLength);
+  };
 
   const drawEndMarker = (ctx, x, y, angle, length) => {
-    ctx.beginPath()
-    ctx.arc(x, y, length * 1.2, 0, Math.PI * 2)
-    ctx.strokeStyle = isEditing ? '#FFA500' : '#00FFFF'
-    ctx.lineWidth = 3
-    ctx.stroke()
+    ctx.beginPath();
+    ctx.arc(x, y, length * 1.2, 0, Math.PI * 2);
+    ctx.strokeStyle = isEditing ? "#FFA500" : "#00FFFF";
+    ctx.lineWidth = 3;
+    ctx.stroke();
 
-    const xLength = length * 0.8
-    ctx.beginPath()
-    ctx.moveTo(x - xLength * Math.cos(angle + Math.PI / 4), y - xLength * Math.sin(angle + Math.PI / 4))
-    ctx.lineTo(x + xLength * Math.cos(angle + Math.PI / 4), y + xLength * Math.sin(angle + Math.PI / 4))
-    ctx.strokeStyle = isEditing ? '#FFA500' : '#00FFFF'
-    ctx.lineWidth = 3
-    ctx.stroke()
+    const xLength = length * 0.8;
+    ctx.beginPath();
+    ctx.moveTo(
+      x - xLength * Math.cos(angle + Math.PI / 4),
+      y - xLength * Math.sin(angle + Math.PI / 4)
+    );
+    ctx.lineTo(
+      x + xLength * Math.cos(angle + Math.PI / 4),
+      y + xLength * Math.sin(angle + Math.PI / 4)
+    );
+    ctx.strokeStyle = isEditing ? "#FFA500" : "#00FFFF";
+    ctx.lineWidth = 3;
+    ctx.stroke();
 
-    ctx.beginPath()
-    ctx.moveTo(x - xLength * Math.cos(angle - Math.PI / 4), y - xLength * Math.sin(angle - Math.PI / 4))
-    ctx.lineTo(x + xLength * Math.cos(angle - Math.PI / 4), y + xLength * Math.sin(angle - Math.PI / 4))
-    ctx.strokeStyle = isEditing ? '#FFA500' : '#00FFFF'
-    ctx.lineWidth = 3
-    ctx.stroke()
-  }
+    ctx.beginPath();
+    ctx.moveTo(
+      x - xLength * Math.cos(angle - Math.PI / 4),
+      y - xLength * Math.sin(angle - Math.PI / 4)
+    );
+    ctx.lineTo(
+      x + xLength * Math.cos(angle - Math.PI / 4),
+      y + xLength * Math.sin(angle - Math.PI / 4)
+    );
+    ctx.strokeStyle = isEditing ? "#FFA500" : "#00FFFF";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  };
 
   const handleCanvasMouseDown = (e) => {
-    if (!isEditing) return
+    if (!isEditing) return;
 
-    const canvas = canvasRef.current
-    const rect = canvas.getBoundingClientRect()
-    const scaleX = canvas.width / rect.width
-    const scaleY = canvas.height / rect.height
-    const x = (e.clientX - rect.left) * scaleX
-    const y = (e.clientY - rect.top) * scaleY
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
 
-    // Check if mouse is near any of the reference points
-    const threshold = 20
+    const threshold = 20;
     for (let i = 0; i < referencePoints.length; i++) {
-      const point = referencePoints[i]
-      const distance = Math.sqrt(Math.pow(x - point.x, 2) + Math.pow(y - point.y, 2))
+      const point = referencePoints[i];
+      const distance = Math.sqrt(Math.pow(x - point.x, 2) + Math.pow(y - point.y, 2));
       if (distance < threshold) {
-        setIsDragging(i)
-        return
+        setIsDragging(i);
+        return;
       }
     }
-  }
+  };
 
   const handleCanvasMouseMove = (e) => {
-    if (!isEditing || isDragging === null) return
+    if (!isEditing || isDragging === null) return;
 
-    const canvas = canvasRef.current
-    const rect = canvas.getBoundingClientRect()
-    const scaleX = canvas.width / rect.width
-    const scaleY = canvas.height / rect.height
-    const x = (e.clientX - rect.left) * scaleX
-    const y = (e.clientY - rect.top) * scaleY
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
 
-    const newPoints = [...referencePoints]
-    newPoints[isDragging] = { x, y }
-    setReferencePoints(newPoints)
-  }
+    const newPoints = [...referencePoints];
+    newPoints[isDragging] = { x, y };
+    setReferencePoints(newPoints);
+  };
 
   const handleCanvasMouseUp = () => {
-    setIsDragging(null)
-  }
+    setIsDragging(null);
+  };
 
   const handleAcceptLine = () => {
-    // Calculate the current length to show in the popup
-    const point1 = referencePoints[0]
-    const point2 = referencePoints[1]
-    const dx = point2.x - point1.x
-    const dy = point2.y - point1.y
-    const pixelLength = Math.sqrt(dx * dx + dy * dy)
-    const realLength = pixelLength * pixelToUnitRatio
+    const point1 = referencePoints[0];
+    const point2 = referencePoints[1];
+    const dx = point2.x - point1.x;
+    const dy = point2.y - point1.y;
+    const pixelLength = Math.sqrt(dx * dx + dy * dy);
+    const realLength = pixelLength * pixelToUnitRatio;
 
-    setLengthValue(realLength.toFixed(2))
-    setShowLengthPopup(true)
-  }
+    setLengthValue(realLength.toFixed(2));
+    setShowLengthPopup(true);
+  };
 
- const handleSaveLength = async () => {
-   try {
-     // Calculate the new pixel-to-unit ratio (le)
-     const point1 = referencePoints[0];
-     const point2 = referencePoints[1];
-     const dx = point2.x - point1.x;
-     const dy = point2.y - point1.y;
-     const pixelLength = Math.sqrt(dx * dx + dy * dy);
-     const newLe = parseFloat(lengthValue) / pixelLength;
+  const extractImagesFromZip = useCallback(async (zipBlob) => {
+    try {
+      const zip = await JSZip.loadAsync(zipBlob);
+      const imageUrls = [];
+      const filePromises = [];
 
-     // Prepare the data to send to the backend
-     const requestData = {
-       filename: uploadedURL[0].filename, // Assuming the filename is in the response
-       scale_params: {
-         le: newLe,
-         unit: unitValue,
-         reference_line: [
-           [referencePoints[0].x, referencePoints[0].y],
-           [referencePoints[1].x, referencePoints[1].y]
-         ]
-       }
-     };
+      zip.forEach((relativePath, file) => {
+        if (!file.dir) {
+          const lowerPath = relativePath.toLowerCase();
+          if (
+            lowerPath.endsWith(".jpg") ||
+            lowerPath.endsWith(".jpeg") ||
+            lowerPath.endsWith(".png")
+          ) {
+            filePromises.push(
+              file.async("blob").then((blob) => {
+                const url = URL.createObjectURL(blob);
+                imageUrls.push({
+                  url,
+                  name: relativePath.split("/").pop(),
+                });
+              })
+            );
+          }
+        }
+      });
 
-     // Send the request to your backend
-     const response = await fetch('http://localhost:5000/api/process_image', {
-       method: 'POST',
-       headers: {
-         'Content-Type': 'application/json',
-       },
-       body: JSON.stringify(requestData)
-     });
-
-     if (!response.ok) {
-       throw new Error('Failed to update scale parameters');
-     }
-
-     // Debugging: Check response type
-     const contentType = response.headers.get('content-type');
-     console.log('Content-Type:', contentType);
-
-     // Handle image response
-     if (contentType && contentType.includes('image')) {
-       const blob = await response.blob();
-       const imageUrl = URL.createObjectURL(blob);
-
-       // Update state
-       setDataURL(imageUrl);
-       setShowLengthPopup(false);
-       setIsEditing(false);
-       setIsProcessed(true);
-     } else {
-       // Handle non-image response (fallback)
-       const text = await response.text();
-       console.warn("Unexpected response:", text);
-       throw new Error('Server did not return an image');
-     }
-// If processing one by one, prepare for next file
-    if (processingMode === 'one-by-one') {
-      setTimeout(goToNextFile, 1000); // Small delay before next file
+      await Promise.all(filePromises);
+      return imageUrls;
+    } catch (error) {
+      console.error("Error extracting ZIP:", error);
+      throw error;
     }
-     // Optionally update the local state with the new parameters
-     setUploadedURL(prev => {
-       const newData = [...prev];
-       newData[0] = {
-         ...newData[0],
-         scale_params: {
-           le: newLe,
-           unit: unitValue,
-           reference_line: [
-             [referencePoints[0].x, referencePoints[0].y],
-             [referencePoints[1].x, referencePoints[1].y]
-           ]
-         }
-       };
-       return newData;
-     });
+  }, []);
 
-   } catch (error) {
-     console.error('Error updating scale parameters:', error);
-     // You might want to show an error message to the user here
-   }
- };
+  const handleSaveLength = async () => {
+    try {
+      const point1 = referencePoints[0];
+      const point2 = referencePoints[1];
+      const dx = point2.x - point1.x;
+      const dy = point2.y - point1.y;
+      const pixelLength = Math.sqrt(dx * dx + dy * dy);
+      const newLe = parseFloat(lengthValue) / pixelLength;
 
-  const { getRootProps, acceptedFiles, getInputProps, isDragActive } = useDropzone({ onDrop, multiple: true })
+      const requestData = {
+        filename: uploadedURL[0].filename,
+        scale_params: {
+          le: newLe,
+          unit: unitValue,
+          reference_line: [
+            [referencePoints[0].x, referencePoints[0].y],
+            [referencePoints[1].x, referencePoints[1].y],
+          ],
+        },
+      };
+
+      if (processingMode === "bulk") {
+        const formData = new FormData();
+        allFiles.forEach((file) => formData.append("images", file));
+
+        formData.append(
+          "scale_params",
+          JSON.stringify({
+            le: newLe,
+            unit: unitValue,
+            reference_line: [
+              [referencePoints[0].x, referencePoints[0].y],
+              [referencePoints[1].x, referencePoints[1].y],
+            ],
+          })
+        );
+
+        const response = await fetch("http://localhost:5000/api/process_bulk_images", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (response.ok) {
+          const responseContentType = response.headers.get("content-type");
+          console.log("Response content type:", responseContentType);
+
+          if (responseContentType.includes("application/zip")) {
+            const zipBlob = await response.blob();
+            const urls = await extractImagesFromZip(zipBlob);
+            setBulkResults(urls);
+          } else {
+            const data = await response.json();
+            setBulkResults(data.processedImages);
+            setAnalysisResults(data); // Store the analysis results
+          }
+          setShowLengthPopup(false);
+          setIsEditing(false);
+          setIsProcessed(true);
+          setCurrentBulkIndex(0);
+        }
+
+        setUploadedURL((prev) => {
+          const newData = [...prev];
+          newData[0] = {
+            ...newData[0],
+            scale_params: {
+              le: newLe,
+              unit: unitValue,
+              reference_line: [
+                [referencePoints[0].x, referencePoints[0].y],
+                [referencePoints[1].x, referencePoints[1].y],
+              ],
+            },
+          };
+          return newData;
+        });
+      } else {
+        const response = await fetch("http://localhost:5000/api/process_image", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestData),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to update scale parameters");
+        }
+
+        const contentType = response.headers.get("content-type");
+        console.log("Content-Type:", contentType);
+
+        if (contentType && contentType.includes("application/json")) {
+          const data = await response.json();
+          setAnalysisResults(data.analysis_results); // Store the analysis results
+          setShowLengthPopup(false);
+          setIsEditing(false);
+          setIsProcessed(true);
+        } else if (contentType && contentType.includes("image")) {
+          const blob = await response.blob();
+          const imageUrl = URL.createObjectURL(blob);
+//           setDataURL(imageUrl);
+          setShowLengthPopup(false);
+          setIsEditing(false);
+          setIsProcessed(true);
+        } else {
+          const text = await response.text();
+          console.warn("Unexpected response:", text);
+          throw new Error("Server did not return expected response");
+        }
+
+        if (processingMode === "one-by-one") {
+          setTimeout(goToNextFile, 1000);
+        }
+      }
+    } catch (error) {
+      console.error("Error updating scale parameters:", error);
+    }
+  };
 
   const uploadImage = async () => {
-    const urls = []
+    const urls = [];
     for (let file of acceptedFiles) {
-      const formData = new FormData()
-      const fileToUpload = allFiles.length > 0
-         ? allFiles[currentFileIndex]
-         : acceptedFiles[0];
-
-       formData.append("image", fileToUpload);
+      const formData = new FormData();
+      const fileToUpload =
+        allFiles.length > 0 ? allFiles[currentFileIndex] : acceptedFiles[0];
+      formData.append("image", fileToUpload);
       const res = await fetch(`http://localhost:5000/api/get_scale_params`, {
         method: "POST",
         body: formData,
-      })
-      const data = await res.json()
-      urls.push(data)
+      });
+      const data = await res.json();
+      urls.push(data);
     }
-    setUploadedURL(urls)
-  }
+    setUploadedURL(urls);
+  };
+
+  const { getRootProps, acceptedFiles, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    multiple: true,
+  });
 
   return (
     <div className="container">
       <div className="zone">
-          {allFiles.length > 1 && processingMode === 'one-by-one' && (
-            <div className="file-counter">
-              File {currentFileIndex + 1} of {allFiles.length}
-            </div>
-          )}
+        {allFiles.length > 1 && processingMode === "one-by-one" && (
+          <div className="file-counter">
+            File {currentFileIndex + 1} of {allFiles.length}
+          </div>
+        )}
+
         {dataURL ? (
           <div className="selected">
-            <div style={{ position: 'relative' }}>
-              <img
-                ref={imageRef}
-                src={dataURL}
-                style={{ maxWidth: '100%', height: 'auto' }}
-                alt="Uploaded"
+            {isProcessed && analysisResults ? (
+              <ImageWithOverlay
+                imageUrl={dataURL}
+                linesData={analysisResults.images[0].linesData}
               />
-              {uploadedURL && imageDimensions.width > 0 && (
-                <canvas
-                  ref={canvasRef}
-                  width={imageDimensions.width}
-                  height={imageDimensions.height}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    cursor: isEditing ? 'pointer' : 'default'
-                  }}
-                  onMouseDown={handleCanvasMouseDown}
-                  onMouseMove={handleCanvasMouseMove}
-                  onMouseUp={handleCanvasMouseUp}
-                  onMouseLeave={handleCanvasMouseUp}
+            ) : (
+              <div style={{ position: "relative" }}>
+                <img
+                  ref={imageRef}
+                  src={dataURL}
+                  style={{ maxWidth: "100%", height: "auto" }}
+                  alt="Uploaded"
                 />
-              )}
-            </div>
+                {uploadedURL && imageDimensions.width > 0 && (
+                  <canvas
+                    ref={canvasRef}
+                    width={imageDimensions.width}
+                    height={imageDimensions.height}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                      cursor: isEditing ? "pointer" : "default",
+                    }}
+                    onMouseDown={handleCanvasMouseDown}
+                    onMouseMove={handleCanvasMouseMove}
+                    onMouseUp={handleCanvasMouseUp}
+                    onMouseLeave={handleCanvasMouseUp}
+                  />
+                )}
+              </div>
+            )}
+
             {!isProcessed && (
               <div className="actions">
                 {uploadedURL ? (
                   <>
                     {!isEditing ? (
                       <>
-                        <button
-                          onClick={() => setIsEditing(true)}
-                          className="edit-btn"
-                        >
+                        <button onClick={() => setIsEditing(true)} className="edit-btn">
                           Edit Line
                         </button>
-                        <button
-                          onClick={handleAcceptLine}
-                          className="accept-btn"
-                        >
+                        <button onClick={handleAcceptLine} className="accept-btn">
                           Accept
                         </button>
                       </>
@@ -406,29 +497,24 @@ const goToNextFile = () => {
                         >
                           Cancel Edit
                         </button>
-                        <button
-                          onClick={handleAcceptLine}
-                          className="accept-btn"
-                        >
+                        <button onClick={handleAcceptLine} className="accept-btn">
                           Save
                         </button>
                       </>
                     )}
                   </>
                 ) : (
-                  <button
-                    onClick={uploadImage}
-                    className="upload-btn"
-                  >
+                  <button onClick={uploadImage} className="upload-btn">
                     Upload
                   </button>
                 )}
                 <button
                   onClick={() => {
-                    setDataURL(null)
-                    setUploadedURL(null)
-                    setIsEditing(false)
-                    setIsProcessed(false)
+                    setDataURL(null);
+                    setUploadedURL(null);
+                    setIsEditing(false);
+                    setIsProcessed(false);
+                    setAnalysisResults(null);
                   }}
                   className="cancel-btn"
                 >
@@ -453,30 +539,29 @@ const goToNextFile = () => {
                 </svg>
               </div>
             ) : (
-              <div className="drag-files">
-                Drop your files here or click to browse
-              </div>
+              <div className="drag-files">Drop your files here or click to browse</div>
             )}
           </div>
         )}
       </div>
 
-{showProcessChoice && (
-  <div className="popup-overlay">
-    <div className="process-choice-popup">
-      <h3>Multiple Files Detected</h3>
-      <p>How would you like to process these {allFiles.length} files?</p>
-      <div className="choice-buttons">
-        <button onClick={() => handleProcessChoice('one-by-one')}>
-          Process One by One
-        </button>
-        <button onClick={() => handleProcessChoice('bulk')}>
-          Process in Bulk
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+      {showProcessChoice && (
+        <div className="popup-overlay">
+          <div className="process-choice-popup">
+            <h3>Multiple Files Detected</h3>
+            <p>How would you like to process these {allFiles.length} files?</p>
+            <div className="choice-buttons">
+              <button onClick={() => handleProcessChoice("one-by-one")}>
+                Process One by One
+              </button>
+              <button onClick={() => handleProcessChoice("bulk")}>
+                Process in Bulk
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showLengthPopup && (
         <div className="popup-overlay">
           <div className="length-popup">
@@ -499,11 +584,37 @@ const goToNextFile = () => {
             </div>
             <div className="popup-buttons">
               <button onClick={() => setShowLengthPopup(false)}>Cancel</button>
-              <button onClick={handleSaveLength} className="primary">OK</button>
+              <button onClick={handleSaveLength} className="primary">
+                OK
+              </button>
             </div>
           </div>
         </div>
       )}
+
+      {processingMode === "bulk" && bulkResults.length > 0 && (
+        <div className="bulk-navigation">
+          <button
+            onClick={() => setCurrentBulkIndex((prev) => Math.max(0, prev - 1))}
+            disabled={currentBulkIndex === 0}
+          >
+            Previous
+          </button>
+          <span>
+            Image {currentBulkIndex + 1} of {bulkResults.length}
+          </span>
+          <button
+            onClick={() =>
+              setCurrentBulkIndex((prev) =>
+                Math.min(bulkResults.length - 1, prev + 1)
+              )
+            }
+            disabled={currentBulkIndex === bulkResults.length - 1}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
-  )
+  );
 }

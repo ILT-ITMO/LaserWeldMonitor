@@ -1,4 +1,5 @@
 import os
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 import torch
 import cv2
 import pathlib
@@ -37,6 +38,15 @@ def process_single_image(key, img, image_path, model1, model2, ocr, output_maske
         im = cv2.imread(os.path.join(str(image_path), key + '.jpg'))
         print(os.path.join(str(image_path), key + '.jpg'))
         plot = im.copy()
+        # initialize UI output data 
+        lines_data = {
+            'contour_lines': [],       # c1, c2
+            'plate_lines': [],         # p11-p21, p12-p22
+            'main_sides': [],         # main_sides_rect
+            'deviation_lines': [],     # deviation peaks
+            'perpendicular_lines': [],  # any perpendicular lines
+            'misalignment':[] #misalignment
+        }
 
         # le, u, line = get_pixel_real_size(ocr, im)
 
@@ -84,7 +94,13 @@ def process_single_image(key, img, image_path, model1, model2, ocr, output_maske
             p11, p12 = p12, p11
             p21, p22 = p22, p21
             c1, c2 = c2, c1
+        lines_data['contour_lines'].extend([c1.tolist(), c2.tolist()])
         
+        # Store plate lines (p11-p21, p12-p22)
+        lines_data['plate_lines'].extend([
+            [p11.tolist(), p21.tolist()],
+            [p12.tolist(), p22.tolist()]
+        ])
         res_d = []
         if case == 1:
             line = perpendicular_foot(p11, p21, p22)
@@ -97,9 +113,10 @@ def process_single_image(key, img, image_path, model1, model2, ocr, output_maske
         for c, l in zip((c1, c2), ((p11, p21), (p12, p22))):
             dist, _, p1, p2 = find_deviation_peaks(l, c, 0.0005 * t)
             res_d.append(np.abs(dist))
-        
+           
         if (case == 1):
             plot = render_line(plot, line, le, u)
+            lines_data['main_sides'].append([line[0].tolist(), line[1].tolist()])
             
             hs = res_d[1][1] * le
             hi = res_d[0][1] * le
@@ -113,6 +130,9 @@ def process_single_image(key, img, image_path, model1, model2, ocr, output_maske
         
         if (case == 2):
             plot = render_line(plot, main_sides_rect[0], le, u)
+
+            lines_data['main_sides'].append([main_sides_rect[0][0].tolist(), main_sides_rect[0][1].tolist()])
+
             hi = 0
             hs = res_d[1][1] * le
             hg = res_d[0][0] * le
@@ -128,6 +148,7 @@ def process_single_image(key, img, image_path, model1, model2, ocr, output_maske
                     for pr in zip(p1, p2):
                         length = (np.linalg.norm(np.array(pr[1]) - np.array(pr[0]))) * le
                         if math.isclose(length, hi, rel_tol=1e-1) or math.isclose(length, he, rel_tol=1e-1) or math.isclose(length, hs, rel_tol=1e-1):
+                            lines_data['deviation_lines'].append([pr[0].tolist(), pr[1].tolist()])
                             plot = render_line(plot, pr, le, u)
                 misalignment_top = compute_misalignment(p12, p22, line) * le
                 misalignment_bottom = compute_misalignment(p11, p21, line) * le
@@ -137,12 +158,13 @@ def process_single_image(key, img, image_path, model1, model2, ocr, output_maske
                 if p1 is not None:
                     for pr in zip(p1, p2):
                         plot = render_line(plot, pr, le, u)
+                        lines_data['deviation_lines'].append([pr[0].tolist(), pr[1].tolist()])
                 misalignment_top = compute_misalignment(p12, p22, main_sides_rect[0]) * le
                 misalignment_bottom = compute_misalignment(p11, p21, main_sides_rect[0]) * le
                 misalignment = max(misalignment_top, misalignment_bottom)
         
         plot = cv2.putText(plot, f'misalignment: %.2f' % misalignment + u, (50, 50), cv2.FONT_HERSHEY_COMPLEX, 2, (0, 0, 255), 2)
-        
+        lines_data['misalignment'].append(misalignment)
         A = np.count_nonzero(mask1) * le * le
         result = {
             "key": key,
@@ -176,7 +198,7 @@ def process_single_image(key, img, image_path, model1, model2, ocr, output_maske
             masked_size = os.path.getsize(output_masked)
             print(f"Masked image size: {masked_size} bytes")
 
-        return result, check_gosts(result)
+        return result, check_gosts(result), lines_data
     
     except cv2.error as e:
         print(f"error while proceeding {key}")
@@ -184,6 +206,12 @@ def process_single_image(key, img, image_path, model1, model2, ocr, output_maske
         return None, None
 
 def process_all_images(config):
+
+    results = {
+    "images": [],
+    "summary": None  
+        }
+
     ocr = PaddleOCR(lang="en", use_angle_cls=False, show_log=False)
 
     middle_part_path = pathlib.Path(config['middle_part_path']).resolve()
@@ -214,9 +242,17 @@ def process_all_images(config):
 
     # read images
     if image_path.is_dir():
+        # print("id\n",image_path)
+        
         for img_id in image_path.glob('**/*'):
+            if img_id.suffix.lower() == '.json' or img_id.suffix.lower() == '.zip':
+                continue
+            # print("id\n",img_id)
             if img_id.is_file():
+                # print("idd\n",img_id)
+                        
                 img = cv2.imread(str(img_id))
+                # print("idd\n",img)
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                 imgs[img_id.stem] = img
     else:
@@ -242,7 +278,7 @@ def process_all_images(config):
         else:
             le, u, line = get_pixel_real_size(ocr, img)
         print("le", le)
-        result, gost_result = process_single_image(
+        result, gost_result, lines_data = process_single_image(
             key, img, image_path, model1, model2, ocr, 
             output_masked, output_rendered, render, le, u, line
         )
@@ -266,16 +302,56 @@ def process_all_images(config):
     
     # Save the sorted DataFrame back to a CSV
     res_df.to_csv(output_result, index=False)
+    image_result = {
+        "id": key,  # or any unique identifier
+        "imageName": key,  # filename or identifier
+        "result": result,
+        # "gostResult": gost_result,
+        "linesData": lines_data,
+        "scaleParams": {
+            "le": le,
+            "u": u,
+            "line": line.tolist() if isinstance(line, np.ndarray) else line
+        }
+    }
+    
+    results["images"].append(image_result)
+    return results
+def main(config_path=None, config_dict=None):
+    """
+    Main entry point that can be called either with:
+    - config_path (str/pathlib.Path): Path to config file (CLI usage)
+    - config_dict (dict): Pre-loaded config dictionary (direct call)
+    
+    Returns:
+        dict: Processing results (structure depends on your implementation)
+    """
+    # Handle input parameters
+    if config_dict is not None:
+        config = config_dict
+    elif config_path is not None:
+        config_path = pathlib.Path(config_path).resolve()
+        if not config_path.exists():
+            raise FileNotFoundError(f"Config file not found: {config_path}")
+        with open(str(config_path), 'r') as json_data:
+            config = json.loads(json_data.read())
+    else:
+        raise ValueError("Either config_path or config_dict must be provided")
+
+    # Process the images and return results
+    results = process_all_images(config)
+    
+    # Ensure process_all_images returns a dict that can be JSON-serialized
+    return results
 
 if __name__ == '__main__':
+    # CLI Interface (unchanged from original)
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, required=True, help='Path to config file')
     args = parser.parse_args()
-
-    config_path = pathlib.Path(args.config).resolve()  # Use the provided path
-    if not config_path.exists():
-        raise FileNotFoundError(f"Config file not found: {config_path}")
-
-    with open(str(config_path), 'r') as json_data:
-        config = json.loads(json_data.read())
-        process_all_images(config)
+    
+    # Call main with CLI arguments
+    results = main(config_path=args.config)
+    
+    # Print results for CLI usage
+    print(json.dumps(results, indent=2))
