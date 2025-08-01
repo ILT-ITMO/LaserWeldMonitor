@@ -28,7 +28,7 @@ export default function MyDropzone() {
   const [analysisResults, setAnalysisResults] = useState(null);
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
-
+  const [csvData, setCsvData] = useState(null);
   const onDrop = useCallback((acceptedFiles) => {
     if (acceptedFiles.length === 0) return;
 
@@ -331,62 +331,40 @@ export default function MyDropzone() {
         });
 
         if (response.ok) {
+
+
           const responseContentType = response.headers.get("content-type");
           const data = await response.json(); // Parse the JSON response
-
+          console.log(data);
+            if (data.analysis_results.csv_data) {
+                              setCsvData(data.analysis_results.csv_data);
+                            }
+                        console.log(csvData);
+                        console.log(data.analysis_results.csv_data);
           const resultsWithUrls = data.analysis_results.images.map((result, index) => ({
                     ...result,
                     originalUrl: URL.createObjectURL(allFiles[index])
                   }));
-//            const imagePath = `/welding/examples/images/${data.analysis_results.images[0].id}.jpg`;
-         setBulkResults(resultsWithUrls);
-               setCurrentBulkIndex(0);
-               setAnalysisResults({
+
+          setBulkResults(resultsWithUrls);
+          setCurrentBulkIndex(0);
+          setAnalysisResults({
                  ...data.analysis_results,
                  images: resultsWithUrls
                });
 
                // Show first image immediately
-               setDataURL(resultsWithUrls[0].originalUrl);
+          setDataURL(resultsWithUrls[0].originalUrl);
                
-           setAnalysisResults(data.analysis_results);
-                // Set the first image's data for display
-//                 if (data.analysis_results.images.length > 0) {
-//                   setDataURL(`data:image/jpeg;base64,${data.analysis_results.images[0].image_data}`);
-//                   setAnalysisResults({
-//                     images: data.processed_images.map(img => img.analysis_results)
-//                   });
-//                 }
-//           if (responseContentType.includes("application/zip")) {
-//             const zipBlob = await response.blob();
-//             const urls = await extractImagesFromZip(zipBlob);
-//             setBulkResults(urls);
-//           } else {
-//             const data = await response.json();
-//             setBulkResults(data.processedImages);
-//             setAnalysisResults(data); // Store the analysis results
-//           }
+          setAnalysisResults(data.analysis_results);
+
           setShowLengthPopup(false);
           setIsEditing(false);
           setIsProcessed(true);
           setCurrentBulkIndex(0);
         }
 
-//         setUploadedURL((prev) => {
-//           const newData = [...prev];
-//           newData[0] = {
-//             ...newData[0],
-//             scale_params: {
-//               le: newLe,
-//               unit: unitValue,
-//               reference_line: [
-//                 [referencePoints[0].x, referencePoints[0].y],
-//                 [referencePoints[1].x, referencePoints[1].y],
-//               ],
-//             },
-//           };
-//           return newData;
-//         });
+
       } else {
         const response = await fetch("http://localhost:5000/api/process_image", {
           method: "POST",
@@ -405,6 +383,10 @@ export default function MyDropzone() {
 
         if (contentType && contentType.includes("application/json")) {
           const data = await response.json();
+         if (data.analysis_results.csv_data) {
+                                        setCsvData(data.csv_data);
+                                      }
+
           setAnalysisResults(data.analysis_results); // Store the analysis results
           setShowLengthPopup(false);
           setIsEditing(false);
@@ -430,7 +412,69 @@ export default function MyDropzone() {
       console.error("Error updating scale parameters:", error);
     }
   };
+const downloadCsv = (data, filename) => {
+  if (!data || data.length === 0) return;
 
+  // Define the exact column order you want
+  const columnOrder = [
+    'key',
+    'b_upper',
+    't',
+    'A',
+    'hg',
+    'he',
+    'hp',
+    'hs',
+    'hm',
+    'hi',
+    'b_downer'
+  ];
+
+  // Define number formatting precision
+  const numberPrecision = {
+    'A': 4,
+    'b_downer': 2,
+    'b_upper': 2,
+    'he': 4,
+    'hg': 4,
+    'hi': 2,
+    'hm': 4,
+    'hp': 4,
+    'hs': 4,
+    't': 4
+  };
+
+  // Create CSV content
+  const csvRows = [
+    columnOrder.join(','), // Header row
+    ...data.map(row =>
+      columnOrder.map(fieldName => {
+        const value = row[fieldName];
+
+        // Format numbers
+        if (numberPrecision[fieldName] !== undefined && value !== null) {
+          return Number(value).toFixed(numberPrecision[fieldName]);
+        }
+
+        // Handle strings
+        if (typeof value === 'string') {
+          return value.includes(',') ? `"${value}"` : value;
+        }
+
+        return value;
+      }).join(',')
+    )
+  ];
+
+  const csvContent = csvRows.join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+};
   const uploadImage = async () => {
     const urls = [];
     for (let file of acceptedFiles) {
@@ -482,10 +526,6 @@ const logNavigation = (direction, newIndex) => {
           <div className="selected">
             {isProcessed && analysisResults ? (
            (() => {
-//              console.log("Full analysis results:", analysisResults);
-//              console.log("Scale parameters:", analysisResults.images[0].scaleParams);
-//              console.log("Lines data:", analysisResults.images[0].linesData);
-//              console.log("Misalignment:", analysisResults.images[0].linesData.misalignment);
 
              return (
                <ImageWithOverlay
@@ -665,7 +705,7 @@ const logNavigation = (direction, newIndex) => {
 
     <button
       onClick={() => {
-          console.log(currentBulkIndex);
+
         const nextIndex = currentBulkIndex + 1;
          logNavigation('forward', nextIndex);
         setCurrentBulkIndex(nextIndex);
@@ -680,6 +720,72 @@ const logNavigation = (direction, newIndex) => {
     </button>
   </div>
 )}
+ {csvData?.properties && (
+   <div className="results-section">
+     <h3>Analysis Results</h3>
+
+     {/* Download Button */}
+     <button
+       onClick={() => downloadCsv(csvData.properties, 'properties.csv')}
+       className="download-btn"
+     >
+       Download CSV
+     </button>
+
+     {/* Results Table */}
+     <div className="results-table-container">
+       <table className="results-table">
+         <thead>
+           <tr>
+             {[
+               'key',
+               'b_upper',
+               't',
+               'A',
+               'hg',
+               'he',
+               'hp',
+               'hs',
+               'hm',
+               'hi',
+               'b_downer'
+             ].map(header => (
+               <th key={header}>{header}</th>
+             ))}
+           </tr>
+         </thead>
+         <tbody>
+           {csvData.properties.map((row, index) => (
+             <tr key={index}>
+               {[
+                 'key',
+                 'b_upper',
+                 't',
+                 'A',
+                 'hg',
+                 'he',
+                 'hp',
+                 'hs',
+                 'hm',
+                 'hi',
+                 'b_downer'
+               ].map(column => {
+                 const value = row[column];
+                 // Format numbers to 4 decimal places by default
+                 const formattedValue = typeof value === 'number'
+                   ? value.toFixed(column === 'A' ? 4 : 2)
+                   : value;
+
+                 return <td key={`${index}-${column}`}>{formattedValue}</td>;
+               })}
+             </tr>
+           ))}
+         </tbody>
+       </table>
+     </div>
+   </div>
+ )}
     </div>
   );
+
 }

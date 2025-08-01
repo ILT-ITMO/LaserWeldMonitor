@@ -209,7 +209,8 @@ def process_all_images(config):
 
     results = {
     "images": [],
-    "summary": None  
+    "summary": None,  
+         "csv_data": None 
         }
 
     ocr = PaddleOCR(lang="en", use_angle_cls=False, show_log=False)
@@ -299,6 +300,7 @@ def process_all_images(config):
             }
             
             results["images"].append(image_result)
+            
 
     # Save results to CSV files
     res_df = pd.DataFrame(res)
@@ -316,6 +318,10 @@ def process_all_images(config):
     
     # Save the sorted DataFrame back to a CSV
     res_df.to_csv(output_result, index=False)
+    results["csv_data"] = {
+        "properties": res_df.to_dict(orient='records')
+        # "gosts": gosts_df.to_dict(orient='records')
+    }
     return results
 def main(config_path=None, config_dict=None):
     """
