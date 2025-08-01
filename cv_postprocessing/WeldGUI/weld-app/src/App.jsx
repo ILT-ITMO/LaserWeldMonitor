@@ -384,7 +384,7 @@ export default function MyDropzone() {
         if (contentType && contentType.includes("application/json")) {
           const data = await response.json();
          if (data.analysis_results.csv_data) {
-                                        setCsvData(data.csv_data);
+                                        setCsvData(data.analysis_results.csv_data);
                                       }
 
           setAnalysisResults(data.analysis_results); // Store the analysis results
