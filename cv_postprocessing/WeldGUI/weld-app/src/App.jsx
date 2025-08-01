@@ -332,38 +332,61 @@ export default function MyDropzone() {
 
         if (response.ok) {
           const responseContentType = response.headers.get("content-type");
-          console.log("Response content type:", responseContentType);
+          const data = await response.json(); // Parse the JSON response
 
-          if (responseContentType.includes("application/zip")) {
-            const zipBlob = await response.blob();
-            const urls = await extractImagesFromZip(zipBlob);
-            setBulkResults(urls);
-          } else {
-            const data = await response.json();
-            setBulkResults(data.processedImages);
-            setAnalysisResults(data); // Store the analysis results
-          }
+          const resultsWithUrls = data.analysis_results.images.map((result, index) => ({
+                    ...result,
+                    originalUrl: URL.createObjectURL(allFiles[index])
+                  }));
+//            const imagePath = `/welding/examples/images/${data.analysis_results.images[0].id}.jpg`;
+         setBulkResults(resultsWithUrls);
+               setCurrentBulkIndex(0);
+               setAnalysisResults({
+                 ...data.analysis_results,
+                 images: resultsWithUrls
+               });
+
+               // Show first image immediately
+               setDataURL(resultsWithUrls[0].originalUrl);
+               
+           setAnalysisResults(data.analysis_results);
+                // Set the first image's data for display
+//                 if (data.analysis_results.images.length > 0) {
+//                   setDataURL(`data:image/jpeg;base64,${data.analysis_results.images[0].image_data}`);
+//                   setAnalysisResults({
+//                     images: data.processed_images.map(img => img.analysis_results)
+//                   });
+//                 }
+//           if (responseContentType.includes("application/zip")) {
+//             const zipBlob = await response.blob();
+//             const urls = await extractImagesFromZip(zipBlob);
+//             setBulkResults(urls);
+//           } else {
+//             const data = await response.json();
+//             setBulkResults(data.processedImages);
+//             setAnalysisResults(data); // Store the analysis results
+//           }
           setShowLengthPopup(false);
           setIsEditing(false);
           setIsProcessed(true);
           setCurrentBulkIndex(0);
         }
 
-        setUploadedURL((prev) => {
-          const newData = [...prev];
-          newData[0] = {
-            ...newData[0],
-            scale_params: {
-              le: newLe,
-              unit: unitValue,
-              reference_line: [
-                [referencePoints[0].x, referencePoints[0].y],
-                [referencePoints[1].x, referencePoints[1].y],
-              ],
-            },
-          };
-          return newData;
-        });
+//         setUploadedURL((prev) => {
+//           const newData = [...prev];
+//           newData[0] = {
+//             ...newData[0],
+//             scale_params: {
+//               le: newLe,
+//               unit: unitValue,
+//               reference_line: [
+//                 [referencePoints[0].x, referencePoints[0].y],
+//                 [referencePoints[1].x, referencePoints[1].y],
+//               ],
+//             },
+//           };
+//           return newData;
+//         });
       } else {
         const response = await fetch("http://localhost:5000/api/process_image", {
           method: "POST",
@@ -378,7 +401,7 @@ export default function MyDropzone() {
         }
 
         const contentType = response.headers.get("content-type");
-        console.log("Content-Type:", contentType);
+//         console.log("Content-Type:", contentType);
 
         if (contentType && contentType.includes("application/json")) {
           const data = await response.json();
@@ -424,11 +447,27 @@ export default function MyDropzone() {
     }
     setUploadedURL(urls);
   };
+useEffect(() => {
+  if (processingMode === "bulk" && bulkResults.length > 0 && bulkResults[currentBulkIndex]) {
+    const currentImage = bulkResults[currentBulkIndex];
+    const imagePath = `/welding/examples/images/${currentImage.id}.jpg`;
+    setDataURL(imagePath);
+    setAnalysisResults({
+                              images: [currentImage]
 
+                            });
+  }
+}, [currentBulkIndex, bulkResults, processingMode]);
   const { getRootProps, acceptedFiles, getInputProps, isDragActive } = useDropzone({
     onDrop,
     multiple: true,
   });
+const logNavigation = (direction, newIndex) => {
+  console.log(`Navigating ${direction} from index ${currentBulkIndex} to ${newIndex}`);
+  console.log('Current bulk results:', bulkResults);
+  console.log('Current analysis results:', analysisResults);
+  console.log('New image data:', bulkResults[newIndex]);
+};
 
   return (
     <div className="container">
@@ -443,10 +482,10 @@ export default function MyDropzone() {
           <div className="selected">
             {isProcessed && analysisResults ? (
            (() => {
-             console.log("Full analysis results:", analysisResults);
-             console.log("Scale parameters:", analysisResults.images[0].scale_params);
-             console.log("Lines data:", analysisResults.images[0].linesData);
-             console.log("Misalignment:", analysisResults.images[0].misalignment);
+//              console.log("Full analysis results:", analysisResults);
+//              console.log("Scale parameters:", analysisResults.images[0].scaleParams);
+//              console.log("Lines data:", analysisResults.images[0].linesData);
+//              console.log("Misalignment:", analysisResults.images[0].linesData.misalignment);
 
              return (
                <ImageWithOverlay
@@ -603,29 +642,44 @@ export default function MyDropzone() {
         </div>
       )}
 
-      {processingMode === "bulk" && bulkResults.length > 0 && (
-        <div className="bulk-navigation">
-          <button
-            onClick={() => setCurrentBulkIndex((prev) => Math.max(0, prev - 1))}
-            disabled={currentBulkIndex === 0}
-          >
-            Previous
-          </button>
-          <span>
-            Image {currentBulkIndex + 1} of {bulkResults.length}
-          </span>
-          <button
-            onClick={() =>
-              setCurrentBulkIndex((prev) =>
-                Math.min(bulkResults.length - 1, prev + 1)
-              )
-            }
-            disabled={currentBulkIndex === bulkResults.length - 1}
-          >
-            Next
-          </button>
-        </div>
-      )}
+{processingMode === "bulk" && bulkResults.length > 0 && (
+  <div className="bulk-navigation">
+    <button
+      onClick={() => {
+        const prevIndex = currentBulkIndex - 1;
+          logNavigation('back', prevIndex);
+        setCurrentBulkIndex(prevIndex);
+        setDataURL(bulkResults[prevIndex].originalUrl);
+         setAnalysisResults({
+            images: [bulkResults[prevIndex]]
+          });
+      }}
+      disabled={currentBulkIndex === 0}
+    >
+      Previous
+    </button>
+
+    <span>
+      Image {currentBulkIndex + 1} of {bulkResults.length}
+    </span>
+
+    <button
+      onClick={() => {
+          console.log(currentBulkIndex);
+        const nextIndex = currentBulkIndex + 1;
+         logNavigation('forward', nextIndex);
+        setCurrentBulkIndex(nextIndex);
+        setDataURL(bulkResults[nextIndex].originalUrl);
+          setAnalysisResults({
+            images: [bulkResults[nextIndex]]
+          });
+      }}
+      disabled={currentBulkIndex === bulkResults.length - 1}
+    >
+      Next
+    </button>
+  </div>
+)}
     </div>
   );
 }

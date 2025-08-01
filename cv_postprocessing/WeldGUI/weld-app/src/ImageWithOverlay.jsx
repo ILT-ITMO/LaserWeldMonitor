@@ -38,7 +38,7 @@ const calculateLength = (point1, point2) => {
   const dx = point2[0] - point1[0];
   const dy = point2[1] - point1[1];
   const pixelLength = Math.sqrt(dx * dx + dy * dy);
-console.log(scaleParams);
+console.log(imageUrl);
   return (pixelLength * scaleParams.le).toFixed(2); // Convert to real units
 };
 

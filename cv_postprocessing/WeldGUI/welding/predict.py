@@ -285,6 +285,20 @@ def process_all_images(config):
         if result is not None:
             res.append(result)
             gosts.append(gost_result)
+            image_result = {
+                "id": key,  # or any unique identifier
+                "imageName": key,  # filename or identifier
+                "result": result,
+                # "gostResult": gost_result,
+                "linesData": lines_data,
+                "scaleParams": {
+                    "le": le,
+                    "u": u,
+                    "line": line.tolist() if isinstance(line, np.ndarray) else line
+                }
+            }
+            
+            results["images"].append(image_result)
 
     # Save results to CSV files
     res_df = pd.DataFrame(res)
@@ -302,20 +316,6 @@ def process_all_images(config):
     
     # Save the sorted DataFrame back to a CSV
     res_df.to_csv(output_result, index=False)
-    image_result = {
-        "id": key,  # or any unique identifier
-        "imageName": key,  # filename or identifier
-        "result": result,
-        # "gostResult": gost_result,
-        "linesData": lines_data,
-        "scaleParams": {
-            "le": le,
-            "u": u,
-            "line": line.tolist() if isinstance(line, np.ndarray) else line
-        }
-    }
-    
-    results["images"].append(image_result)
     return results
 def main(config_path=None, config_dict=None):
     """

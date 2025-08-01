@@ -198,37 +198,46 @@ def process_bulk_images():
         logger.info("Starting bulk subprocess...")
    
         results = main(config_dict=config)
+        response_data = {
+            "success": True,
+            "analysis_results": results,  # All your measurement data
+            # "image_reference": data['filename'],  # Same reference you received
+            "scale_params": scale_params  # Return the scale params back for verification
+        }
+        print(response_data)
+        # print(response_data)
+        return jsonify(response_data)
         # Handle multiple output files
-        processed_files = list(output_dir.glob("*.jpg"))  # Adjust extension if needed
+        # processed_files = list(output_dir.glob("*.jpg"))  # Adjust extension if needed
         
-        if not processed_files:
-            logger.error("No output images found after bulk processing")
-            return jsonify({
-                "error": "Processing completed but no output images found"
-            }), 500
+        # if not processed_files:
+        #     logger.error("No output images found after bulk processing")
+        #     return jsonify({
+        #         "error": "Processing completed but no output images found"
+        #     }), 500
         
-        # Create zip file for multiple images
-        zip_filename = f"bulk_results_{int(time.time())}.zip"
-        zip_path = Path(UPLOAD_FOLDER) / zip_filename
+        # # Create zip file for multiple images
+        # zip_filename = f"bulk_results_{int(time.time())}.zip"
+        # zip_path = Path(UPLOAD_FOLDER) / zip_filename
         
-        try:
-            with zipfile.ZipFile(zip_path, 'w') as zipf:
-                for file in processed_files:
-                    zipf.write(file, file.name)
-        except Exception as e:
-            logger.error(f"Failed to create zip file: {str(e)}")
-            return jsonify({
-                "error": "Failed to package results",
-                "details": str(e)
-            }), 500
-        zip_path = "examples/images/"+zip_filename
-        logger.info(f"Successfully processed {len(processed_files)} images")
-        return send_file(
-            zip_path,
-            mimetype='application/zip',
-            as_attachment=True,
-            download_name=zip_filename
-        )
+        # try:
+        #     with zipfile.ZipFile(zip_path, 'w') as zipf:
+        #         for file in processed_files:
+        #             zipf.write(file, file.name)
+        # except Exception as e:
+        #     logger.error(f"Failed to create zip file: {str(e)}")
+        #     return jsonify({
+        #         "error": "Failed to package results",
+        #         "details": str(e)
+        #     }), 500
+        # zip_path = "examples/images/"+zip_filename
+        # logger.info(f"Successfully processed {len(processed_files)} images")
+        # return send_file(
+        #     zip_path,
+        #     mimetype='application/zip',
+        #     as_attachment=True,
+        #     download_name=zip_filename
+        # )
         
     except Exception as e:
         logger.error(f"Unexpected error in bulk processing: {str(e)}\n{traceback.format_exc()}")
