@@ -45,14 +45,27 @@ def process_single_image(key, img, image_path, model1, model2, ocr, output_maske
             'main_sides': [],         # main_sides_rect
             'deviation_lines': [],     # deviation peaks
             'perpendicular_lines': [],  # any perpendicular lines
-            'misalignment':[] #misalignment
+            'misalignment':[], #misalignment
+            'mask_contours':[]
         }
 
         # le, u, line = get_pixel_real_size(ocr, im)
 
         mask1 = get_mask(model1, im)
         mask1 = keep_largest_component(mask1)
-        
+        mask_contours = []
+
+        # Find contours to send them to UI 
+        contours, _ = cv2.findContours(mask1, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # Simplify and store contours for UI 
+        for cnt in contours:
+            epsilon = 0.001 * cv2.arcLength(cnt, True)  # Adjust epsilon for simplification
+            approx = cv2.approxPolyDP(cnt, epsilon, True)
+            mask_contours.append(approx.squeeze().tolist())  # Convert to list and remove single-dim entries
+
+        # Add to lines_data
+        lines_data['mask_contours'] = mask_contours
         # create mask of side parts of the plate
         mask2 = get_mask(model2, im)
         mask2 = cv2.subtract(mask2, mask1)

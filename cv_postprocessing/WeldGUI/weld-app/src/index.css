@@ -21,3 +21,28 @@ table td {
   padding: 8px;
   text-align: left;
 }
+.toggle-controls {
+  display: flex;
+  gap: 10px;
+  margin: 10px 0;
+  justify-content: center;
+}
+
+.toggle-controls button {
+  padding: 8px 12px;
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggle-controls button:hover {
+  background: #e0e0e0;
+}
+
+.toggle-controls button.active {
+  background: #007bff;
+  color: white;
+  border-color: #0069d9;
+}

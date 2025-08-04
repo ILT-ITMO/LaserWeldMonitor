@@ -3,7 +3,7 @@ import { useDropzone } from "react-dropzone";
 import "./App.css";
 import JSZip from "jszip";
 import ImageWithOverlay from "./ImageWithOverlay";
-
+import ToggleControls from "./ToggleControls"
 export default function MyDropzone() {
   const [dataURL, setDataURL] = useState(null);
   const [uploadedURL, setUploadedURL] = useState(null);
@@ -29,6 +29,11 @@ export default function MyDropzone() {
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
   const [csvData, setCsvData] = useState(null);
+  const [showMask, setShowMask] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(true);
+  const [showScaleLine, setShowScaleLine] = useState(true);
+  const maskCanvasRef = useRef(null);
+
   const onDrop = useCallback((acceptedFiles) => {
     if (acceptedFiles.length === 0) return;
 
@@ -88,7 +93,35 @@ export default function MyDropzone() {
       setCurrentFileIndex(0);
     }
   };
+useEffect(() => {
+  if (showMask && maskCanvasRef.current && analysisResults) {
+    const canvas = maskCanvasRef.current;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Draw mask contours if they exist
+    if (analysisResults.images[0]?.linesData?.mask_contours?.length > 0) {
+      ctx.fillStyle = "rgba(0, 255, 0, 0.3)"; // Semi-transparent green
+
+      analysisResults.images[0].linesData.mask_contours.forEach(contour => {
+        if (contour.length > 0) {
+          ctx.beginPath();
+          // Move to first point
+          ctx.moveTo(contour[0][0], contour[0][1]);
+
+          // Draw lines to subsequent points
+          for (let i = 1; i < contour.length; i++) {
+            ctx.lineTo(contour[i][0], contour[i][1]);
+          }
+
+          // Close the path and fill
+          ctx.closePath();
+          ctx.fill();
+        }
+      });
+    }
+  }
+}, [showMask, analysisResults]);
   useEffect(() => {
     if (imageRef.current && dataURL) {
       const img = new Image();
@@ -355,7 +388,7 @@ export default function MyDropzone() {
 
                // Show first image immediately
           setDataURL(resultsWithUrls[0].originalUrl);
-               
+
           setAnalysisResults(data.analysis_results);
 
           setShowLengthPopup(false);
@@ -514,6 +547,7 @@ const logNavigation = (direction, newIndex) => {
 };
 
   return (
+
     <div className="container">
       <div className="zone">
         {allFiles.length > 1 && processingMode === "one-by-one" && (
@@ -524,18 +558,60 @@ const logNavigation = (direction, newIndex) => {
 
         {dataURL ? (
           <div className="selected">
+              {isProcessed && analysisResults && (
+                <ToggleControls
+                  showMask={showMask}
+                  setShowMask={setShowMask}
+                  showMeasurements={showOverlay}
+                  setShowMeasurements={setShowOverlay}
+                  showScaleLine={showScaleLine}
+                  setShowScaleLine={setShowScaleLine}
+                />
+              )}
+{showMask && analysisResults?.images[0]?.linesData?.mask_contours && (
+  <canvas
+    ref={maskCanvasRef}
+    width={imageDimensions.width}
+    height={imageDimensions.height}
+    style={{
+      position: "absolute",
+
+      width: "100%",
+      height: "auto",
+      pointerEvents: "none",
+      zIndex: 2
+    }}
+  />
+)}
+
             {isProcessed && analysisResults ? (
-           (() => {
 
-             return (
-               <ImageWithOverlay
-                 imageUrl={dataURL}
-                 linesData={analysisResults.images[0].linesData}
-                 scaleParams={analysisResults.images[0].scaleParams}
+           <>
+               {showOverlay && (
+                 <ImageWithOverlay
+                   imageUrl={dataURL}
+                   linesData={analysisResults.images[0].linesData}
+                   scaleParams={analysisResults.images[0].scaleParams}
+                 />
+               )}
 
-               />
-             );
-           })()
+               {showMask && (
+                 <canvas
+                   ref={canvasRef}
+                   width={imageDimensions.width}
+                   height={imageDimensions.height}
+                   style={{
+                     position: "absolute",
+                     top: 0,
+                     left: 0,
+                     width: "100%",
+                     height: "100%",
+                     pointerEvents: "none", // prevent interfering with interactions
+                   }}
+                 />
+               )}
+             </>
+
             ) : (
               <div style={{ position: "relative" }}>
                 <img
@@ -567,6 +643,7 @@ const logNavigation = (direction, newIndex) => {
             )}
 
             {!isProcessed && (
+
               <div className="actions">
                 {uploadedURL ? (
                   <>
