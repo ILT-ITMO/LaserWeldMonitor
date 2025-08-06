@@ -1,39 +1,36 @@
 import React, { useEffect, useRef } from 'react';
-
 const ImageWithOverlay = ({ imageUrl, linesData, scaleParams }) => {
   const canvasRef = useRef(null);
+  const imgRef = useRef(null);
 
   useEffect(() => {
-    if (!imageUrl || !linesData) return;
+    if (!imgRef.current || !canvasRef.current || !linesData) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
+    const img = imgRef.current;
 
-    // Load the image
-    const img = new Image();
-    img.src = imageUrl;
-    img.onload = () => {
-      // Set canvas dimensions to match image
-      canvas.width = img.width;
-      canvas.height = img.height;
+    // Set canvas dimensions to match image
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
 
-      // Draw the image
-      ctx.drawImage(img, 0, 0);
-      if (linesData.misalignment) {
-        drawText(
-          ctx,
-          `Misalignment: ${linesData.misalignment[0].toFixed(2)} ${scaleParams.u}`,
-          20,  // x position
-          40,  // y position
-          'red',
-          50
-        );
-      }
+    // Clear and draw overlay only
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw the lines
-      drawLines(ctx, linesData);
-    };
+    if (linesData.misalignment) {
+      drawText(
+        ctx,
+        `Misalignment: ${linesData.misalignment[0].toFixed(2)} ${scaleParams.u}`,
+        20,
+        40,
+        'red',
+        50
+      );
+    }
+
+    drawLines(ctx, linesData);
   }, [imageUrl, linesData]);
+
 const calculateLength = (point1, point2) => {
   const dx = point2[0] - point1[0];
   const dy = point2[1] - point1[1];
@@ -110,16 +107,33 @@ const drawText = (ctx, text, x, y, color = 'black', fontSize = 20) => {
 
     ctx.stroke();
   };
-
-  return (
-    <div className="image-container">
+return (
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      <img
+        ref={imgRef}
+        src={imageUrl}
+        alt="base"
+        style={{ display: 'block', maxWidth: '100%', height: 'auto' }}
+        onLoad={() => {
+          // Trigger canvas overlay rendering when image is loaded
+          if (linesData) {
+            const evt = new Event('resize'); // trigger re-render logic in useEffect
+            window.dispatchEvent(evt);
+          }
+        }}
+      />
       <canvas
         ref={canvasRef}
-        style={{ maxWidth: '100%', height: 'auto' }}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          pointerEvents: 'none',
+        }}
       />
     </div>
-
   );
 };
-
 export default ImageWithOverlay;

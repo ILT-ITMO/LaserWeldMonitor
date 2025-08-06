@@ -13,6 +13,7 @@ export default function MyDropzone() {
   const [showLengthPopup, setShowLengthPopup] = useState(false);
   const [lengthValue, setLengthValue] = useState("");
   const [unitValue, setUnitValue] = useState("");
+  const [blobUrl, setBlobUrl] = useState(null);
   const [referencePoints, setReferencePoints] = useState([
     { x: 0, y: 0 },
     { x: 0, y: 0 },
@@ -93,6 +94,12 @@ export default function MyDropzone() {
       setCurrentFileIndex(0);
     }
   };
+ useEffect(() => {
+    const img = new Image();
+    img.src = dataURL;
+
+  }, [dataURL]);
+
 useEffect(() => {
   if (showMask && maskCanvasRef.current && analysisResults) {
     const canvas = maskCanvasRef.current;
@@ -524,17 +531,17 @@ const downloadCsv = (data, filename) => {
     }
     setUploadedURL(urls);
   };
-useEffect(() => {
-  if (processingMode === "bulk" && bulkResults.length > 0 && bulkResults[currentBulkIndex]) {
-    const currentImage = bulkResults[currentBulkIndex];
-    const imagePath = `/welding/examples/images/${currentImage.id}.jpg`;
-    setDataURL(imagePath);
-    setAnalysisResults({
-                              images: [currentImage]
-
-                            });
-  }
-}, [currentBulkIndex, bulkResults, processingMode]);
+// useEffect(() => {
+//   if (processingMode === "bulk" && bulkResults.length > 0 && bulkResults[currentBulkIndex]) {
+//     const currentImage = bulkResults[currentBulkIndex];
+//     const imagePath = `/welding/examples/images/${currentImage.id}.jpg`;
+//     setDataURL(imagePath);
+//     setAnalysisResults({
+//                               images: [currentImage]
+//
+//                             });
+//   }
+// }, [currentBulkIndex, bulkResults, processingMode]);
   const { getRootProps, acceptedFiles, getInputProps, isDragActive } = useDropzone({
     onDrop,
     multiple: true,
@@ -575,6 +582,7 @@ const logNavigation = (direction, newIndex) => {
     height={imageDimensions.height}
     style={{
       position: "absolute",
+      position: "absolute",
 
       width: "100%",
       height: "auto",
@@ -587,6 +595,19 @@ const logNavigation = (direction, newIndex) => {
             {isProcessed && analysisResults ? (
 
            <>
+   <img
+      src={dataURL}
+      alt="debug"
+      style={{
+        maxWidth: "100%",
+        height: "auto",
+        border: "5px solid red", // helps see it
+        backgroundColor: "yellow",
+      }}
+      onLoad={() => console.log("Image loaded:", dataURL)}
+      onError={(e) => console.error("Image failed to load", dataURL, e)}
+      style={{ display: showOverlay ? 'none' : 'block', maxWidth: '100%' }}
+    />
                {showOverlay && (
                  <ImageWithOverlay
                    imageUrl={dataURL}
