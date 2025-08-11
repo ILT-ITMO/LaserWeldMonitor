@@ -93,7 +93,11 @@
   display: block;
   border-radius: inherit;
 }
-
+.image-container img, .overlay-canvas {
+  display: block;
+  margin: 0;
+  padding: 0;
+}
 .uploaded-url {
   display: block;
   width: 100%;

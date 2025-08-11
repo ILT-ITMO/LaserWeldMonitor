@@ -28,6 +28,7 @@ export default function MyDropzone() {
   const [currentBulkIndex, setCurrentBulkIndex] = useState(0);
   const [analysisResults, setAnalysisResults] = useState(null);
   const canvasRef = useRef(null);
+
   const imageRef = useRef(null);
   const [csvData, setCsvData] = useState(null);
   const [showMask, setShowMask] = useState(false);
@@ -169,7 +170,11 @@ useEffect(() => {
       drawReferenceLine();
     }
   }, [referencePoints, isEditing]);
-
+useEffect(() => {
+  if (canvasRef.current && imageDimensions.width > 0 && referencePoints[0].x !== 0) {
+    drawReferenceLine();
+  }
+}, [showScaleLine, referencePoints, isEditing, isProcessed]);
   const drawReferenceLine = () => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -177,7 +182,7 @@ useEffect(() => {
 
     const point1 = referencePoints[0];
     const point2 = referencePoints[1];
-
+    if (isProcessed && !showScaleLine) return;
     ctx.beginPath();
     ctx.moveTo(point1.x, point1.y);
     ctx.lineTo(point2.x, point2.y);
@@ -556,6 +561,16 @@ const logNavigation = (direction, newIndex) => {
   return (
 
     <div className="container">
+        {isProcessed && analysisResults && (
+                        <ToggleControls
+                          showMask={showMask}
+                          setShowMask={setShowMask}
+                          showMeasurements={showOverlay}
+                          setShowMeasurements={setShowOverlay}
+                          showScaleLine={showScaleLine}
+                          setShowScaleLine={setShowScaleLine}
+                        />
+                      )}
       <div className="zone">
         {allFiles.length > 1 && processingMode === "one-by-one" && (
           <div className="file-counter">
@@ -565,16 +580,7 @@ const logNavigation = (direction, newIndex) => {
 
         {dataURL ? (
           <div className="selected">
-              {isProcessed && analysisResults && (
-                <ToggleControls
-                  showMask={showMask}
-                  setShowMask={setShowMask}
-                  showMeasurements={showOverlay}
-                  setShowMeasurements={setShowOverlay}
-                  showScaleLine={showScaleLine}
-                  setShowScaleLine={setShowScaleLine}
-                />
-              )}
+
 {showMask && analysisResults?.images[0]?.linesData?.mask_contours && (
   <canvas
     ref={maskCanvasRef}
@@ -613,21 +619,29 @@ const logNavigation = (direction, newIndex) => {
                    imageUrl={dataURL}
                    linesData={analysisResults.images[0].linesData}
                    scaleParams={analysisResults.images[0].scaleParams}
+                    style={{
+                       position: 'absolute',
+                       top: 0,
+                       left: 0,
+                       width: '100%',
+                       height: '100%'
+                     }}
                  />
                )}
 
-               {showMask && (
+               {showScaleLine && (
                  <canvas
                    ref={canvasRef}
                    width={imageDimensions.width}
                    height={imageDimensions.height}
                    style={{
-                     position: "absolute",
-                     top: 0,
-                     left: 0,
-                     width: "100%",
-                     height: "100%",
+                       position: "absolute",
+                       top: 0,
+                       left: 0,
+                       width: "100%",
+                       height: "100%",
                      pointerEvents: "none", // prevent interfering with interactions
+                     zIndex: 2
                    }}
                  />
                )}
@@ -641,7 +655,7 @@ const logNavigation = (direction, newIndex) => {
                   style={{ maxWidth: "100%", height: "auto" }}
                   alt="Uploaded"
                 />
-                {uploadedURL && imageDimensions.width > 0 && (
+                {uploadedURL && imageDimensions.width > 0 &&(
                   <canvas
                     ref={canvasRef}
                     width={imageDimensions.width}

@@ -108,7 +108,7 @@ const drawText = (ctx, text, x, y, color = 'black', fontSize = 20) => {
     ctx.stroke();
   };
 return (
-    <div style={{ position: 'relative', display: 'inline-block' }}>
+    <div style={{ position: 'relative', display: 'block' }}>
       <img
         ref={imgRef}
         src={imageUrl}
