@@ -460,9 +460,10 @@ useEffect(() => {
 const downloadCsv = (data, filename) => {
   if (!data || data.length === 0) return;
 
-  // Define the exact column order you want
+  // Define the exact column order you want - now with split key columns
   const columnOrder = [
-    'key',
+    'key_number',  // New column for the numeric part
+    'key_letter',  // New column for the letter part
     'b_upper',
     't',
     'A',
@@ -492,8 +493,18 @@ const downloadCsv = (data, filename) => {
   // Create CSV content
   const csvRows = [
     columnOrder.join(','), // Header row
-    ...data.map(row =>
-      columnOrder.map(fieldName => {
+    ...data.map(row => {
+      // Split the key into number and letter parts
+      const key = row.key || '';
+      const keyMatch = key.match(/(\d+)([a-zA-Z]*)/) || ['', '', ''];
+      const keyNumber = keyMatch[1] || '';
+      const keyLetter = keyMatch[2] || '';
+
+      return columnOrder.map(fieldName => {
+        // Handle the split key columns
+        if (fieldName === 'key_number') return keyNumber;
+        if (fieldName === 'key_letter') return keyLetter;
+
         const value = row[fieldName];
 
         // Format numbers
@@ -507,8 +518,8 @@ const downloadCsv = (data, filename) => {
         }
 
         return value;
-      }).join(',')
-    )
+      }).join(',');
+    })
   ];
 
   const csvContent = csvRows.join('\n');
@@ -850,7 +861,8 @@ const logNavigation = (direction, newIndex) => {
          <thead>
            <tr>
              {[
-               'key',
+               'key_number',  // Numeric part
+               'key_letter',  // Letter part
                'b_upper',
                't',
                'A',
@@ -866,32 +878,42 @@ const logNavigation = (direction, newIndex) => {
              ))}
            </tr>
          </thead>
-         <tbody>
-           {csvData.properties.map((row, index) => (
-             <tr key={index}>
-               {[
-                 'key',
-                 'b_upper',
-                 't',
-                 'A',
-                 'hg',
-                 'he',
-                 'hp',
-                 'hs',
-                 'hm',
-                 'hi',
-                 'b_downer'
-               ].map(column => {
-                 const value = row[column];
-                 // Format numbers to 4 decimal places by default
-                 const formattedValue = typeof value === 'number'
-                   ? value.toFixed(column === 'A' ? 4 : 2)
-                   : value;
+       <tbody>
+           {csvData.properties.map((row, index) => {
+             // Split the key here for display
+             const key = row.key || '';
+             const keyMatch = key.match(/(\d+)([a-zA-Z]*)/) || ['', '', ''];
+             const keyNumber = keyMatch[1] || '';
+             const keyLetter = keyMatch[2] || '';
 
-                 return <td key={`${index}-${column}`}>{formattedValue}</td>;
-               })}
-             </tr>
-           ))}
+             return (
+               <tr key={index}>
+                 {/* Key number and letter cells */}
+                 <td>{keyNumber}</td>
+                 <td>{keyLetter}</td>
+
+                 {/* Rest of the cells */}
+                 {[
+                   'b_upper',
+                   't',
+                   'A',
+                   'hg',
+                   'he',
+                   'hp',
+                   'hs',
+                   'hm',
+                   'hi',
+                   'b_downer'
+                 ].map(column => {
+                   const value = row[column];
+                   const formattedValue = typeof value === 'number'
+                     ? value.toFixed(column === 'A' ? 4 : 2)
+                     : value;
+                   return <td key={`${index}-${column}`}>{formattedValue}</td>;
+                 })}
+               </tr>
+             );
+           })}
          </tbody>
        </table>
      </div>

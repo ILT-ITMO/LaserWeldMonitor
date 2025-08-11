@@ -45,8 +45,9 @@ def get_scale_params():
     if file.filename == '':
         return jsonify({"error": "Empty filename"}), 400
     
-    unique_filename = f"{uuid.uuid4()}.jpg"
-    file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
+    # unique_filename = f"{uuid.uuid4()}.jpg"
+    original_filename = file.filename
+    file_path = os.path.join(UPLOAD_FOLDER, original_filename)
     file.save(file_path)
     
     # Read the image and get scale parameters
@@ -59,7 +60,7 @@ def get_scale_params():
     
     # Don't delete the file yet - we'll use it in the next request
     return jsonify({
-        "filename": unique_filename,
+        "filename": original_filename,
         "scale_params": {
             "le": float(le),
             "unit": u,
