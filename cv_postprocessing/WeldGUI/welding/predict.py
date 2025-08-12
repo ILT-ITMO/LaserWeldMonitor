@@ -11,10 +11,10 @@ import re
 from paddleocr import PaddleOCR
 from ultralytics import YOLO
 import math
-from src.contours import *
-from src.ocr import get_pixel_real_size
-from src.render import *
-from src.gost import check_gosts
+from welding.src.contours import *
+from welding.src.ocr import get_pixel_real_size
+from welding.src.render import *
+from welding.src.gost import check_gosts
 import argparse
 # Set environment variable at the beginning
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'

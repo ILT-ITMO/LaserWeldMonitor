@@ -7,7 +7,7 @@ import json
 import cv2
 from paddleocr import PaddleOCR
 import numpy as np
-from src.ocr import get_pixel_real_size
+from welding.src.ocr import get_pixel_real_size
 import traceback
 import logging
 from pathlib import Path
@@ -15,7 +15,7 @@ import sys
 import time
 import zipfile
 import shutil
-from predict import main
+from welding.predict import main
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 app = Flask(__name__)
