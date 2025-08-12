@@ -9,3 +9,5 @@ thermograms_analysis/*.zip
 !thermograms_analysis/laser_params.json
 thermograms_analysis/*.xlsx
 thermograms_analysis/dummy.py
+cv_postprocessing/WeldGUI/welding/examples/output/rendered.zip
+cv_postprocessing/WeldGUI/welding/weights/old/middle.pt
