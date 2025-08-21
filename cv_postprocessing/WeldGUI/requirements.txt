@@ -17,7 +17,7 @@ scikit-learn==1.6.1
 # Data Processing
 numpy==1.26.4
 pandas==2.2.3
-scipy==1.13.1
+# scipy==1.13.1
 
 # Computer Vision
 opencv-python-headless==4.11.0.86
