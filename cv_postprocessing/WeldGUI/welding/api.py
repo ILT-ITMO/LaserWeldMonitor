@@ -27,7 +27,7 @@ UPLOAD_FOLDER = 'welding/examples/images'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Initialize OCR once when the app starts
-ocr = PaddleOCR(lang="en", use_angle_cls=False, show_log=False)
+ocr = PaddleOCR(lang="en", use_angle_cls=False)
 
 @app.route('/api/get_scale_params', methods=['POST'])
 def get_scale_params():
@@ -256,4 +256,5 @@ def process_bulk_images():
         except Exception as e:
             logger.error(f"Bulk cleanup failed: {str(e)}")
 if __name__ == '__main__':
-    app.run(port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)

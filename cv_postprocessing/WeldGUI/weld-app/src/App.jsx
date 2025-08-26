@@ -370,7 +370,7 @@ useEffect(() => {
           })
         );
 
-        const response = await fetch("http://localhost:5000/api/process_bulk_images", {
+        const response = await fetch("/api/process_bulk_images", {
           method: "POST",
           body: formData,
         });
@@ -411,7 +411,7 @@ useEffect(() => {
 
 
       } else {
-        const response = await fetch("http://localhost:5000/api/process_image", {
+        const response = await fetch("/api/process_image", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -538,7 +538,7 @@ const downloadCsv = (data, filename) => {
       const fileToUpload =
         allFiles.length > 0 ? allFiles[currentFileIndex] : acceptedFiles[0];
       formData.append("image", fileToUpload);
-      const res = await fetch(`http://localhost:5000/api/get_scale_params`, {
+      const res = await fetch(`/api/get_scale_params`, {
         method: "POST",
         body: formData,
       });
