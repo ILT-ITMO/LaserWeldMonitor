@@ -16,57 +16,71 @@ import time
 import zipfile
 import shutil
 from welding.predict import main
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)
 
 UPLOAD_FOLDER = 'welding/examples/images'
-
-
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Initialize OCR once when the app starts
-ocr = PaddleOCR(lang="en", use_angle_cls=False)
+# REMOVE THIS: ocr = PaddleOCR(lang="en", use_angle_cls=False)
+
+# Add global variable but don't initialize yet
+ocr_instance = None
+
+def get_ocr():
+    """Lazy initialization of PaddleOCR"""
+    global ocr_instance
+    if ocr_instance is None:
+        logger.info("Initializing PaddleOCR...")
+        ocr_instance = PaddleOCR(lang="en", use_angle_cls=False)
+        logger.info("PaddleOCR initialized successfully")
+    return ocr_instance
 
 @app.route('/api/get_scale_params', methods=['POST'])
 def get_scale_params():
-    # for filename in os.listdir(UPLOAD_FOLDER):
-    #     file_path = os.path.join(UPLOAD_FOLDER, filename)
-    #     try:
-    #         if os.path.isfile(file_path):
-    #             os.unlink(file_path)
-    #     except Exception as e:
-    #         print(f"Error deleting file {file_path}: {e}")
-    if 'image' not in request.files:
-        return jsonify({"error": "No image uploaded"}), 400
-    
-    file = request.files['image']
-    if file.filename == '':
-        return jsonify({"error": "Empty filename"}), 400
-    
-    # unique_filename = f"{uuid.uuid4()}.jpg"
-    original_filename = file.filename
-    file_path = os.path.join(UPLOAD_FOLDER, original_filename)
-    file.save(file_path)
-    
-    # Read the image and get scale parameters
-    img = cv2.imread(file_path)
-    le, u, line = get_pixel_real_size(ocr, img)
-    
-    # Convert line points to serializable format
-    if line is not None:
-        line = [tuple(map(float, point)) for point in line]
-    
-    # Don't delete the file yet - we'll use it in the next request
-    return jsonify({
-        "filename": original_filename,
-        "scale_params": {
-            "le": float(le),
-            "unit": u,
-            "reference_line": line
-        }
-    })
+    try:
+        if 'image' not in request.files:
+            return jsonify({"error": "No image uploaded"}), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({"error": "Empty filename"}), 400
+        
+        original_filename = file.filename
+        file_path = os.path.join(UPLOAD_FOLDER, original_filename)
+        file.save(file_path)
+        
+        # Read the image and get scale parameters
+        img = cv2.imread(file_path)
+        
+        # LAZY INITIALIZATION - only when needed
+        ocr = get_ocr()
+        le, u, line = get_pixel_real_size(ocr, img)
+        
+        # Convert line points to serializable format
+        if line is not None:
+            line = [tuple(map(float, point)) for point in line]
+        
+        return jsonify({
+            "filename": original_filename,
+            "scale_params": {
+                "le": float(le),
+                "unit": u,
+                "reference_line": line
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in get_scale_params: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"error": "Internal server error", "details": str(e)}), 500
+
+# Add a simple health check to test if app starts
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "healthy", "message": "Flask app is running"})
 
 @app.route('/api/process_image', methods=['POST'])
 def process_image():
