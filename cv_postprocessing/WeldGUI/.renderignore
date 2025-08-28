@@ -1,0 +1,12 @@
+.idea
+.ipynb_checkpoints
+weld-app
+welding/.idea
+welding/.ipynb_checkpoints
+welding/__pycache__
+welding/examples/.ipynb_checkpoints
+welding/RL_algorithms
+welding/src/.ipynb_checkpoints
+welding/src/__pycache__
+welding/src/thermogram
+

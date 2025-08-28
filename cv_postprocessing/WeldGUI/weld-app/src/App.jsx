@@ -95,12 +95,17 @@ export default function MyDropzone() {
       setCurrentFileIndex(0);
     }
   };
- useEffect(() => {
-    const img = new Image();
-    img.src = dataURL;
-
-  }, [dataURL]);
-
+//  useEffect(() => {
+//     const img = new Image();
+//     img.src = dataURL;
+//
+//   }, [dataURL]);
+useEffect(() => {
+  console.log('dataURL changed:', dataURL);
+  if (dataURL === null) {
+    console.trace('dataURL set to null - check where this is happening');
+  }
+}, [dataURL]);
 useEffect(() => {
   if (showMask && maskCanvasRef.current && analysisResults) {
     const canvas = maskCanvasRef.current;
@@ -370,7 +375,7 @@ useEffect(() => {
           })
         );
 
-        const response = await fetch("/api/process_bulk_images", {
+        const response = await fetch("https://laserweldmonitor.onrender.com/api/process_bulk_images", {
           method: "POST",
           body: formData,
         });
@@ -411,7 +416,7 @@ useEffect(() => {
 
 
       } else {
-        const response = await fetch("/api/process_image", {
+        const response = await fetch("https://laserweldmonitor.onrender.com/api/process_image", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -538,7 +543,7 @@ const downloadCsv = (data, filename) => {
       const fileToUpload =
         allFiles.length > 0 ? allFiles[currentFileIndex] : acceptedFiles[0];
       formData.append("image", fileToUpload);
-      const res = await fetch(`/api/get_scale_params`, {
+      const res = await fetch(`https://laserweldmonitor.onrender.com/api/get_scale_params`, {
         method: "POST",
         body: formData,
       });
