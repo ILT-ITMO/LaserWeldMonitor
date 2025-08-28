@@ -16,6 +16,7 @@ import time
 import zipfile
 import shutil
 from welding.predict import main
+import threading
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,16 +30,39 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Add global variable but don't initialize yet
 ocr_instance = None
+ocr_lock = threading.Lock()
 
 def get_ocr():
-    """Lazy initialization of PaddleOCR"""
     global ocr_instance
-    if ocr_instance is None:
-        logger.info("Initializing PaddleOCR...")
-        ocr_instance = PaddleOCR(lang="en", use_angle_cls=False)
-        logger.info("PaddleOCR initialized successfully")
-    return ocr_instance
-
+    with ocr_lock:
+        if ocr_instance is None:
+            print("Initializing PaddleOCR from pre-downloaded models...")
+            
+            # Path where models were downloaded during build
+            model_path = '/opt/render/.paddleocr'
+            
+            try:
+                # Initialize WITHOUT downloading - use pre-downloaded models
+                ocr_instance = PaddleOCR(
+                    lang="en", 
+                    use_angle_cls=False, 
+                    use_gpu=False,
+                    show_log=False,
+                    rec_model_dir=model_path,    # Use pre-downloaded
+                    det_model_dir=model_path,    # Use pre-downloaded
+                    enable_mkldnn=True
+                )
+                print("PaddleOCR initialized from pre-downloaded models!")
+            except Exception as e:
+                print(f"Error initializing PaddleOCR: {e}")
+                # Fallback: let it download (but this shouldn't happen)
+                print("Falling back to runtime download...")
+                ocr_instance = PaddleOCR(
+                    lang="en", 
+                    use_angle_cls=False, 
+                    use_gpu=False
+                )
+        return ocr_instance
 @app.route('/api/get_scale_params', methods=['POST'])
 def get_scale_params():
     try:
