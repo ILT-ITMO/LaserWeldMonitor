@@ -37,30 +37,34 @@ def get_ocr():
         if ocr_instance is None:
             print("Initializing PaddleOCR from pre-downloaded models...")
             
-            # PaddleOCR expects models in specific subdirectories
-            model_base = '/models/paddleocr'
+            # CORRECTED: Use the actual path from debug output
+            model_base = os.path.join(os.getcwd(), 'models', 'paddleocr')
+            print(f"Looking for models at: {model_base}")
             
             try:
                 # Check if models exist before initializing
                 required_dirs = [
-                    f'{model_base}/en_PP-OCRv3_det_infer',
-                    f'{model_base}/en_PP-OCRv4_rec_infer', 
-                    f'{model_base}/ch_ppocr_mobile_v2.0_cls_infer'
+                    os.path.join(model_base, 'en_PP-OCRv3_det_infer'),
+                    os.path.join(model_base, 'en_PP-OCRv4_rec_infer'), 
+                    os.path.join(model_base, 'ch_ppocr_mobile_v2.0_cls_infer')
                 ]
                 
                 for model_dir in required_dirs:
                     if not os.path.exists(model_dir):
                         raise FileNotFoundError(f"Model directory not found: {model_dir}")
+                    else:
+                        print(f"✓ Found model: {model_dir}")
+                        print(f"  Contents: {os.listdir(model_dir)}")
                 
                 # Initialize with explicit paths to pre-downloaded models
                 ocr_instance = PaddleOCR(
                     lang="en", 
-                    use_angle_cls=False,  # Set to True if you want to use classification
+                    use_angle_cls=False,
                     use_gpu=False,
                     show_log=False,
-                    rec_model_dir=f'{model_base}/en_PP-OCRv4_rec_infer',
-                    det_model_dir=f'{model_base}/en_PP-OCRv3_det_infer',
-                    cls_model_dir=f'{model_base}/ch_ppocr_mobile_v2.0_cls_infer',
+                    rec_model_dir=os.path.join(model_base, 'en_PP-OCRv4_rec_infer'),
+                    det_model_dir=os.path.join(model_base, 'en_PP-OCRv3_det_infer'),
+                    cls_model_dir=os.path.join(model_base, 'ch_ppocr_mobile_v2.0_cls_infer'),
                     enable_mkldnn=True
                 )
                 print("PaddleOCR initialized from pre-downloaded models!")
@@ -71,7 +75,7 @@ def get_ocr():
                 # Use minimal settings to reduce memory footprint
                 ocr_instance = PaddleOCR(
                     lang="en", 
-                    use_angle_cls=False,  # Disable cls to save memory
+                    use_angle_cls=False,
                     use_gpu=False,
                     show_log=False,
                     enable_mkldnn=True
