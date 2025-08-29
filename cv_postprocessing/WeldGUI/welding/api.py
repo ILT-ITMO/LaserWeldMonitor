@@ -79,37 +79,7 @@ def get_ocr():
                 print("PaddleOCR initialized with automatic download!")
                 
         return ocr_instance
-@app.route('/api/debug/models', methods=['GET'])
-def debug_models():
-    import os
-    model_base = '/opt/render/.paddleocr'
-    
-    if not os.path.exists(model_base):
-        return jsonify({'error': 'Model directory does not exist'}), 404
-    
-    model_structure = {}
-    total_size = 0
-    
-    for root, dirs, files in os.walk(model_base):
-        relative_path = os.path.relpath(root, model_base)
-        file_info = []
-        
-        for file in files:
-            file_path = os.path.join(root, file)
-            file_size = os.path.getsize(file_path)
-            total_size += file_size
-            file_info.append({
-                'name': file, 
-                'size': file_size,
-                'size_mb': round(file_size / (1024 * 1024), 2)
-            })
-        
-        model_structure[relative_path] = file_info
-    
-    return jsonify({
-        'total_size_mb': round(total_size / (1024 * 1024), 2),
-        'structure': model_structure
-    })
+
 @app.route('/api/get_scale_params', methods=['POST'])
 def get_scale_params():
     try:
@@ -147,11 +117,113 @@ def get_scale_params():
     except Exception as e:
         logger.error(f"Error in get_scale_params: {str(e)}\n{traceback.format_exc()}")
         return jsonify({"error": "Internal server error", "details": str(e)}), 500
+   """Health check endpoint with filesystem debugging"""
+    debug_info = {
+        "status": "healthy",
+        "message": "Flask app is running",
+        "filesystem_debug": {}
+    }
+    
+    try:
+        # Current working directory info
+        debug_info["filesystem_debug"]["current_directory"] = os.getcwd()
+        debug_info["filesystem_debug"]["directory_contents"] = os.listdir('.')
+        
+        # Check models directory
+        models_path = os.path.join(os.getcwd(), 'models')
+        debug_info["filesystem_debug"]["models_directory_exists"] = os.path.exists(models_path)
+        
+        if os.path.exists(models_path):
+            debug_info["filesystem_debug"]["models_directory_contents"] = os.listdir(models_path)
+            
+            # Check paddleocr subdirectory
+            paddleocr_path = os.path.join(models_path, 'paddleocr')
+            debug_info["filesystem_debug"]["paddleocr_directory_exists"] = os.path.exists(paddleocr_path)
+            
+            if os.path.exists(paddleocr_path):
+                debug_info["filesystem_debug"]["paddleocr_directory_contents"] = os.listdir(paddleocr_path)
+                
+                # Check each model directory
+                model_dirs = ['en_PP-OCRv3_det_infer', 'en_PP-OCRv4_rec_infer', 'ch_ppocr_mobile_v2.0_cls_infer']
+                for model_dir in model_dirs:
+                    model_path = os.path.join(paddleocr_path, model_dir)
+                    debug_info["filesystem_debug"][f"{model_dir}_exists"] = os.path.exists(model_path)
+                    if os.path.exists(model_path):
+                        debug_info["filesystem_debug"][f"{model_dir}_contents"] = os.listdir(model_path)
+        
+        # Check absolute paths that might be used on Render
+        abs_paths_to_check = [
+            '/opt/render/project/src',
+            '/app',
+            '/var/task'
+        ]
+        
+        debug_info["filesystem_debug"]["absolute_paths"] = {}
+        for abs_path in abs_paths_to_check:
+            debug_info["filesystem_debug"]["absolute_paths"][abs_path] = {
+                "exists": os.path.exists(abs_path),
+                "is_directory": os.path.isdir(abs_path) if os.path.exists(abs_path) else False
+            }
+            if os.path.exists(abs_path) and os.path.isdir(abs_path):
+                try:
+                    debug_info["filesystem_debug"]["absolute_paths"][abs_path]["contents"] = os.listdir(abs_path)[:10]  # First 10 items
+                except PermissionError:
+                    debug_info["filesystem_debug"]["absolute_paths"][abs_path]["contents"] = "Permission denied"
+        
+        # Environment variables (for debugging)
+        debug_info["environment"] = {
+            "PYTHONPATH": os.environ.get('PYTHONPATH'),
+            "PWD": os.environ.get('PWD'),
+            "HOME": os.environ.get('HOME')
+        }
+        
+    except Exception as e:
+        debug_info["status"] = "error"
+        debug_info["error"] = str(e)
+    
+    return jsonify(debug_info)
 
-# Add a simple health check to test if app starts
-@app.route('/api/health', methods=['GET'])
-def health_check():
-    return jsonify({"status": "healthy", "message": "Flask app is running"})
+
+@app.route('/api/debug/models', methods=['GET'])
+def debug_models():
+    """Specific endpoint to debug model paths"""
+    debug_info = {}
+    
+    # Test all possible model path locations
+    possible_base_paths = [
+        os.getcwd(),
+        '/opt/render/project/src',
+        '/app',
+        '/var/task',
+        '/'
+    ]
+    
+    model_dirs = ['en_PP-OCRv3_det_infer', 'en_PP-OCRv4_rec_infer', 'ch_ppocr_mobile_v2.0_cls_infer']
+    
+    debug_info["possible_paths"] = {}
+    
+    for base_path in possible_base_paths:
+        if os.path.exists(base_path):
+            models_path = os.path.join(base_path, 'models', 'paddleocr')
+            debug_info["possible_paths"][base_path] = {
+                "base_exists": True,
+                "models_paddleocr_exists": os.path.exists(models_path),
+                "models": {}
+            }
+            
+            if os.path.exists(models_path):
+                for model_dir in model_dirs:
+                    model_path = os.path.join(models_path, model_dir)
+                    debug_info["possible_paths"][base_path]["models"][model_dir] = {
+                        "exists": os.path.exists(model_path),
+                        "path": model_path
+                    }
+                    if os.path.exists(model_path):
+                        debug_info["possible_paths"][base_path]["models"][model_dir]["contents"] = os.listdir(model_path)
+        else:
+            debug_info["possible_paths"][base_path] = {"base_exists": False}
+    
+    return jsonify(debug_info)
 
 @app.route('/api/process_image', methods=['POST'])
 def process_image():
