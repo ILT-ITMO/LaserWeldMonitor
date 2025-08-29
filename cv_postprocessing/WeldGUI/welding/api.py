@@ -38,14 +38,14 @@ def get_ocr():
             print("Initializing PaddleOCR from pre-downloaded models...")
             
             # PaddleOCR expects models in specific subdirectories
-            model_base = '/opt/render/.paddleocr/whl'
+            model_base = '/models/paddleocr'
             
             try:
                 # Check if models exist before initializing
                 required_dirs = [
-                    f'{model_base}/det/en/en_PP-OCRv3_det_infer',
-                    f'{model_base}/rec/en/en_PP-OCRv4_rec_infer', 
-                    f'{model_base}/cls/ch_ppocr_mobile_v2.0_cls_infer'
+                    f'{model_base}/en_PP-OCRv3_det_infer',
+                    f'{model_base}/en_PP-OCRv4_rec_infer', 
+                    f'{model_base}/ch_ppocr_mobile_v2.0_cls_infer'
                 ]
                 
                 for model_dir in required_dirs:
@@ -58,9 +58,9 @@ def get_ocr():
                     use_angle_cls=False,  # Set to True if you want to use classification
                     use_gpu=False,
                     show_log=False,
-                    rec_model_dir=f'{model_base}/rec/en/en_PP-OCRv4_rec_infer',
-                    det_model_dir=f'{model_base}/det/en/en_PP-OCRv3_det_infer',
-                    cls_model_dir=f'{model_base}/cls/ch_ppocr_mobile_v2.0_cls_infer',
+                    rec_model_dir=f'{model_base}/en_PP-OCRv4_rec_infer',
+                    det_model_dir=f'{model_base}/en_PP-OCRv3_det_infer',
+                    cls_model_dir=f'{model_base}/ch_ppocr_mobile_v2.0_cls_infer',
                     enable_mkldnn=True
                 )
                 print("PaddleOCR initialized from pre-downloaded models!")
