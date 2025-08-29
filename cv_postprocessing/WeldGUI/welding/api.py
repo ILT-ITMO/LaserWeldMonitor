@@ -31,38 +31,53 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # Add global variable but don't initialize yet
 ocr_instance = None
 ocr_lock = threading.Lock()
-
 def get_ocr():
     global ocr_instance
     with ocr_lock:
         if ocr_instance is None:
             print("Initializing PaddleOCR from pre-downloaded models...")
             
-            # Path where models were downloaded during build
-            model_path = '/opt/render/.paddleocr'
+            # PaddleOCR expects models in specific subdirectories
+            model_base = '/opt/render/.paddleocr/whl'
             
             try:
-                # Initialize WITHOUT downloading - use pre-downloaded models
+                # Initialize with explicit paths to pre-downloaded models
                 ocr_instance = PaddleOCR(
                     lang="en", 
                     use_angle_cls=False, 
                     use_gpu=False,
                     show_log=False,
-                    rec_model_dir=model_path,    # Use pre-downloaded
-                    det_model_dir=model_path,    # Use pre-downloaded
+                    rec_model_dir=f'{model_base}/rec/en/en_PP-OCRv4_rec_infer',
+                    det_model_dir=f'{model_base}/det/en/en_PP-OCRv3_det_infer',
+                    cls_model_dir=f'{model_base}/cls/ch_ppocr_mobile_v2.0_cls_infer',
                     enable_mkldnn=True
                 )
                 print("PaddleOCR initialized from pre-downloaded models!")
             except Exception as e:
                 print(f"Error initializing PaddleOCR: {e}")
-                # Fallback: let it download (but this shouldn't happen)
-                print("Falling back to runtime download...")
+                # Fallback with minimal settings
+                print("Falling back to automatic download...")
                 ocr_instance = PaddleOCR(
                     lang="en", 
                     use_angle_cls=False, 
-                    use_gpu=False
+                    use_gpu=False,
+                    show_log=False
                 )
         return ocr_instance
+@app.route('/api/debug/models', methods=['GET'])
+def debug_models():
+    import os
+    model_base = '/opt/render/.paddleocr'
+    
+    if not os.path.exists(model_base):
+        return jsonify({'error': 'Model directory does not exist'}), 404
+    
+    model_structure = {}
+    for root, dirs, files in os.walk(model_base):
+        relative_path = os.path.relpath(root, model_base)
+        model_structure[relative_path] = files
+    
+    return jsonify(model_structure)
 @app.route('/api/get_scale_params', methods=['POST'])
 def get_scale_params():
     try:
