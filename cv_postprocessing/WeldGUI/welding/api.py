@@ -41,10 +41,21 @@ def get_ocr():
             model_base = '/opt/render/.paddleocr/whl'
             
             try:
+                # Check if models exist before initializing
+                required_dirs = [
+                    f'{model_base}/det/en/en_PP-OCRv3_det_infer',
+                    f'{model_base}/rec/en/en_PP-OCRv4_rec_infer', 
+                    f'{model_base}/cls/ch_ppocr_mobile_v2.0_cls_infer'
+                ]
+                
+                for model_dir in required_dirs:
+                    if not os.path.exists(model_dir):
+                        raise FileNotFoundError(f"Model directory not found: {model_dir}")
+                
                 # Initialize with explicit paths to pre-downloaded models
                 ocr_instance = PaddleOCR(
                     lang="en", 
-                    use_angle_cls=False, 
+                    use_angle_cls=False,  # Set to True if you want to use classification
                     use_gpu=False,
                     show_log=False,
                     rec_model_dir=f'{model_base}/rec/en/en_PP-OCRv4_rec_infer',
@@ -53,16 +64,20 @@ def get_ocr():
                     enable_mkldnn=True
                 )
                 print("PaddleOCR initialized from pre-downloaded models!")
+                
             except Exception as e:
-                print(f"Error initializing PaddleOCR: {e}")
-                # Fallback with minimal settings
+                print(f"Error initializing PaddleOCR with pre-downloaded models: {e}")
                 print("Falling back to automatic download...")
+                # Use minimal settings to reduce memory footprint
                 ocr_instance = PaddleOCR(
                     lang="en", 
-                    use_angle_cls=False, 
+                    use_angle_cls=False,  # Disable cls to save memory
                     use_gpu=False,
-                    show_log=False
+                    show_log=False,
+                    enable_mkldnn=True
                 )
+                print("PaddleOCR initialized with automatic download!")
+                
         return ocr_instance
 @app.route('/api/debug/models', methods=['GET'])
 def debug_models():
@@ -73,11 +88,28 @@ def debug_models():
         return jsonify({'error': 'Model directory does not exist'}), 404
     
     model_structure = {}
+    total_size = 0
+    
     for root, dirs, files in os.walk(model_base):
         relative_path = os.path.relpath(root, model_base)
-        model_structure[relative_path] = files
+        file_info = []
+        
+        for file in files:
+            file_path = os.path.join(root, file)
+            file_size = os.path.getsize(file_path)
+            total_size += file_size
+            file_info.append({
+                'name': file, 
+                'size': file_size,
+                'size_mb': round(file_size / (1024 * 1024), 2)
+            })
+        
+        model_structure[relative_path] = file_info
     
-    return jsonify(model_structure)
+    return jsonify({
+        'total_size_mb': round(total_size / (1024 * 1024), 2),
+        'structure': model_structure
+    })
 @app.route('/api/get_scale_params', methods=['POST'])
 def get_scale_params():
     try:

@@ -49,19 +49,19 @@ def main():
         # Create model directory with proper structure
         model_base = Path('/opt/render/.paddleocr/whl')
         
-        # Model URLs
+        # Model URLs - using correct structure for PaddleOCR
         models = {
             'det': {
                 'url': 'https://paddleocr.bj.bcebos.com/PP-OCRv3/english/en_PP-OCRv3_det_infer.tar',
-                'dir': model_base / 'det' / 'en'
+                'dir': model_base / 'det' / 'en' / 'en_PP-OCRv3_det_infer'
             },
             'rec': {
                 'url': 'https://paddleocr.bj.bcebos.com/PP-OCRv4/english/en_PP-OCRv4_rec_infer.tar',
-                'dir': model_base / 'rec' / 'en'
+                'dir': model_base / 'rec' / 'en' / 'en_PP-OCRv4_rec_infer'
             },
             'cls': {
                 'url': 'https://paddleocr.bj.bcebos.com/dygraph_v2.0/ch/ch_ppocr_mobile_v2.0_cls_infer.tar',
-                'dir': model_base / 'cls'
+                'dir': model_base / 'cls' / 'ch_ppocr_mobile_v2.0_cls_infer'
             }
         }
         
@@ -72,27 +72,29 @@ def main():
             # Create model-specific directory
             model_info['dir'].mkdir(exist_ok=True, parents=True)
             
-            # Download the tar file
+            # Download the tar file to a temporary location
             tar_filename = model_info['url'].split('/')[-1]
-            tar_path = model_info['dir'] / tar_filename
+            temp_dir = model_info['dir'].parent
+            tar_path = temp_dir / tar_filename
             
             download_file(model_info['url'], str(tar_path))
-            extract_tar(str(tar_path), str(model_info['dir']))
+            extract_tar(str(tar_path), str(temp_dir))
         
         print("\n✅ All models downloaded and extracted successfully!")
         
         # Verify the files exist
         print("\n=== Verifying downloaded files ===")
         required_files = {
-            'det': ['en_PP-OCRv3_det_infer/inference.pdmodel', 'en_PP-OCRv3_det_infer/inference.pdiparams'],
-            'rec': ['en_PP-OCRv4_rec_infer/inference.pdmodel', 'en_PP-OCRv4_rec_infer/inference.pdiparams'],
-            'cls': ['ch_ppocr_mobile_v2.0_cls_infer/inference.pdmodel', 'ch_ppocr_mobile_v2.0_cls_infer/inference.pdiparams']
+            'det': ['inference.pdmodel', 'inference.pdiparams'],
+            'rec': ['inference.pdmodel', 'inference.pdiparams'],
+            'cls': ['inference.pdmodel', 'inference.pdiparams']
         }
         
         all_good = True
         for model_type, files in required_files.items():
+            model_dir = models[model_type]['dir']
             for file in files:
-                full_path = model_base / model_type / ('en' if model_type in ['det', 'rec'] else '') / file
+                full_path = model_dir / file
                 if full_path.exists():
                     print(f"✅ Found: {full_path}")
                 else:
