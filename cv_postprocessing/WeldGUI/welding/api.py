@@ -117,7 +117,11 @@ def get_scale_params():
     except Exception as e:
         logger.error(f"Error in get_scale_params: {str(e)}\n{traceback.format_exc()}")
         return jsonify({"error": "Internal server error", "details": str(e)}), 500
-   """Health check endpoint with filesystem debugging"""
+
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Health check endpoint with filesystem debugging"""
     debug_info = {
         "status": "healthy",
         "message": "Flask app is running",
@@ -224,7 +228,6 @@ def debug_models():
             debug_info["possible_paths"][base_path] = {"base_exists": False}
     
     return jsonify(debug_info)
-
 @app.route('/api/process_image', methods=['POST'])
 def process_image():
     try:
