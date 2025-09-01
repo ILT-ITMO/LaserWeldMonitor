@@ -44,8 +44,8 @@ def get_ocr():
             try:
                 # Check if models exist before initializing
                 required_dirs = [
-                    os.path.join(model_base, 'en_PP-OCRv3_det_infer'),
-                    os.path.join(model_base, 'en_PP-OCRv4_rec_infer'), 
+                    os.path.join(model_base, 'en_ppocr_mobile_v2.0_det_infer'),
+                    os.path.join(model_base, 'en_number_mobile_v2.0_rec_infer'), 
                     os.path.join(model_base, 'ch_ppocr_mobile_v2.0_cls_infer')
                 ]
                 
@@ -62,8 +62,8 @@ def get_ocr():
                     use_angle_cls=False,
                     use_gpu=False,
                     show_log=False,
-                    rec_model_dir=os.path.join(model_base, 'en_PP-OCRv4_rec_infer'),
-                    det_model_dir=os.path.join(model_base, 'en_PP-OCRv3_det_infer'),
+                    rec_model_dir=os.path.join(model_base, 'en_number_mobile_v2.0_rec_infer'),
+                    det_model_dir=os.path.join(model_base, 'en_ppocr_mobile_v2.0_det_infer'),
                     cls_model_dir=os.path.join(model_base, 'ch_ppocr_mobile_v2.0_cls_infer'),
                     enable_mkldnn=True
                 )
@@ -152,7 +152,7 @@ def health_check():
                 debug_info["filesystem_debug"]["paddleocr_directory_contents"] = os.listdir(paddleocr_path)
                 
                 # Check each model directory
-                model_dirs = ['en_PP-OCRv3_det_infer', 'en_PP-OCRv4_rec_infer', 'ch_ppocr_mobile_v2.0_cls_infer']
+                model_dirs = ['en_ppocr_mobile_v2.0_det_infer', 'en_number_mobile_v2.0_rec_infer', 'ch_ppocr_mobile_v2.0_cls_infer']
                 for model_dir in model_dirs:
                     model_path = os.path.join(paddleocr_path, model_dir)
                     debug_info["filesystem_debug"][f"{model_dir}_exists"] = os.path.exists(model_path)
@@ -206,7 +206,7 @@ def debug_models():
         '/'
     ]
     
-    model_dirs = ['en_PP-OCRv3_det_infer', 'en_PP-OCRv4_rec_infer', 'ch_ppocr_mobile_v2.0_cls_infer']
+    model_dirs = ['en_ppocr_mobile_v2.0_det_infer', 'en_number_mobile_v2.0_rec_infer', 'ch_ppocr_mobile_v2.0_cls_infer']
     
     debug_info["possible_paths"] = {}
     
