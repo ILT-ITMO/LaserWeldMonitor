@@ -5,7 +5,7 @@ import os
 import uuid
 import json
 import cv2
-from paddleocr import PaddleOCR
+# from paddleocr import PaddleOCR
 import numpy as np
 from welding.src.ocr import get_pixel_real_size
 import traceback
@@ -17,12 +17,15 @@ import zipfile
 import shutil
 from welding.predict import main
 import threading
-
+import easyocr
+import PIL.Image
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)
-
+# Patch the ANTIALIAS issue
+if not hasattr(PIL.Image, 'ANTIALIAS'):
+    PIL.Image.ANTIALIAS = PIL.Image.LANCZOS
 UPLOAD_FOLDER = 'welding/examples/images'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -35,53 +38,60 @@ def get_ocr():
     global ocr_instance
     with ocr_lock:
         if ocr_instance is None:
-            print("Initializing PaddleOCR from pre-downloaded models...")
+            # print("Initializing PaddleOCR from pre-downloaded models...")
             
             # CORRECTED: Use the actual path from debug output
-            model_base = os.path.join(os.getcwd(), 'models', 'paddleocr')
-            print(f"Looking for models at: {model_base}")
+            # model_base = os.path.join(os.getcwd(), 'models', 'paddleocr')
+            # print(f"Looking for models at: {model_base}")
             
             try:
                 # Check if models exist before initializing
-                required_dirs = [
-                    os.path.join(model_base, 'en_ppocr_mobile_v2.0_det_infer'),
-                    os.path.join(model_base, 'en_number_mobile_v2.0_rec_infer'), 
-                    os.path.join(model_base, 'ch_ppocr_mobile_v2.0_cls_infer')
-                ]
+                # required_dirs = [
+                #     os.path.join(model_base, 'en_ppocr_mobile_v2.0_det_infer'),
+                #     os.path.join(model_base, 'en_number_mobile_v2.0_rec_infer'), 
+                #     os.path.join(model_base, 'ch_ppocr_mobile_v2.0_cls_infer')
+                # ]
                 
-                for model_dir in required_dirs:
-                    if not os.path.exists(model_dir):
-                        raise FileNotFoundError(f"Model directory not found: {model_dir}")
-                    else:
-                        print(f"✓ Found model: {model_dir}")
-                        print(f"  Contents: {os.listdir(model_dir)}")
+                # for model_dir in required_dirs:
+                #     if not os.path.exists(model_dir):
+                #         raise FileNotFoundError(f"Model directory not found: {model_dir}")
+                #     else:
+                #         print(f"✓ Found model: {model_dir}")
+                #         print(f"  Contents: {os.listdir(model_dir)}")
                 
-                # Initialize with explicit paths to pre-downloaded models
-                ocr_instance = PaddleOCR(
-                    lang="en", 
-                    use_angle_cls=False,
-                    use_gpu=False,
-                    show_log=False,
-                    rec_model_dir=os.path.join(model_base, 'en_number_mobile_v2.0_rec_infer'),
-                    det_model_dir=os.path.join(model_base, 'en_ppocr_mobile_v2.0_det_infer'),
-                    cls_model_dir=os.path.join(model_base, 'ch_ppocr_mobile_v2.0_cls_infer'),
-                    enable_mkldnn=True
+                # # Initialize with explicit paths to pre-downloaded models
+                # ocr_instance = PaddleOCR(
+                #     lang="en", 
+                #     use_angle_cls=False,
+                #     use_gpu=False,
+                #     show_log=False,
+                #     rec_model_dir=os.path.join(model_base, 'en_number_mobile_v2.0_rec_infer'),
+                #     det_model_dir=os.path.join(model_base, 'en_ppocr_mobile_v2.0_det_infer'),
+                #     cls_model_dir=os.path.join(model_base, 'ch_ppocr_mobile_v2.0_cls_infer'),
+                #     enable_mkldnn=True
+                # )
+                # print("PaddleOCR initialized from pre-downloaded models!")
+                ocr_instance = easyocr.Reader(
+                    ['en'],  # Only English
+                    gpu=False,  # Force CPU
+                    download_enabled=True,  # Auto-download if needed
+                    model_storage_directory='models/easyocr'  # Optional: specify where to store models
                 )
-                print("PaddleOCR initialized from pre-downloaded models!")
-                
+                print("EasyOCR initialized successfully!")
             except Exception as e:
-                print(f"Error initializing PaddleOCR with pre-downloaded models: {e}")
-                print("Falling back to automatic download...")
-                # Use minimal settings to reduce memory footprint
-                ocr_instance = PaddleOCR(
-                    lang="en", 
-                    use_angle_cls=False,
-                    use_gpu=False,
-                    show_log=False,
-                    enable_mkldnn=True
-                )
-                print("PaddleOCR initialized with automatic download!")
-                
+                # print(f"Error initializing PaddleOCR with pre-downloaded models: {e}")
+                # print("Falling back to automatic download...")
+                # # Use minimal settings to reduce memory footprint
+                # ocr_instance = PaddleOCR(
+                #     lang="en", 
+                #     use_angle_cls=False,
+                #     use_gpu=False,
+                #     show_log=False,
+                #     enable_mkldnn=True
+                # )
+                # print("PaddleOCR initialized with automatic download!")
+                print(f"Error initializing EasyOCR: {e}")
+                raise
         return ocr_instance
 
 @app.route('/api/get_scale_params', methods=['POST'])
@@ -192,46 +202,46 @@ def health_check():
     return jsonify(debug_info)
 
 
-@app.route('/api/debug/models', methods=['GET'])
-def debug_models():
-    """Specific endpoint to debug model paths"""
-    debug_info = {}
+# @app.route('/api/debug/models', methods=['GET'])
+# def debug_models():
+#     """Specific endpoint to debug model paths"""
+#     debug_info = {}
     
-    # Test all possible model path locations
-    possible_base_paths = [
-        os.getcwd(),
-        '/opt/render/project/src',
-        '/app',
-        '/var/task',
-        '/'
-    ]
+#     # Test all possible model path locations
+#     possible_base_paths = [
+#         os.getcwd(),
+#         '/opt/render/project/src',
+#         '/app',
+#         '/var/task',
+#         '/'
+#     ]
     
-    model_dirs = ['en_ppocr_mobile_v2.0_det_infer', 'en_number_mobile_v2.0_rec_infer', 'ch_ppocr_mobile_v2.0_cls_infer']
+#     model_dirs = ['en_ppocr_mobile_v2.0_det_infer', 'en_number_mobile_v2.0_rec_infer', 'ch_ppocr_mobile_v2.0_cls_infer']
     
-    debug_info["possible_paths"] = {}
+#     debug_info["possible_paths"] = {}
     
-    for base_path in possible_base_paths:
-        if os.path.exists(base_path):
-            models_path = os.path.join(base_path, 'models', 'paddleocr')
-            debug_info["possible_paths"][base_path] = {
-                "base_exists": True,
-                "models_paddleocr_exists": os.path.exists(models_path),
-                "models": {}
-            }
+#     for base_path in possible_base_paths:
+#         if os.path.exists(base_path):
+#             models_path = os.path.join(base_path, 'models', 'paddleocr')
+#             debug_info["possible_paths"][base_path] = {
+#                 "base_exists": True,
+#                 "models_paddleocr_exists": os.path.exists(models_path),
+#                 "models": {}
+#             }
             
-            if os.path.exists(models_path):
-                for model_dir in model_dirs:
-                    model_path = os.path.join(models_path, model_dir)
-                    debug_info["possible_paths"][base_path]["models"][model_dir] = {
-                        "exists": os.path.exists(model_path),
-                        "path": model_path
-                    }
-                    if os.path.exists(model_path):
-                        debug_info["possible_paths"][base_path]["models"][model_dir]["contents"] = os.listdir(model_path)
-        else:
-            debug_info["possible_paths"][base_path] = {"base_exists": False}
+#             if os.path.exists(models_path):
+#                 for model_dir in model_dirs:
+#                     model_path = os.path.join(models_path, model_dir)
+#                     debug_info["possible_paths"][base_path]["models"][model_dir] = {
+#                         "exists": os.path.exists(model_path),
+#                         "path": model_path
+#                     }
+#                     if os.path.exists(model_path):
+#                         debug_info["possible_paths"][base_path]["models"][model_dir]["contents"] = os.listdir(model_path)
+#         else:
+#             debug_info["possible_paths"][base_path] = {"base_exists": False}
     
-    return jsonify(debug_info)
+#     return jsonify(debug_info)
 @app.route('/api/process_image', methods=['POST'])
 def process_image():
     try:

@@ -143,7 +143,7 @@ def process_yolo_masks(masks):
 
 
 def save_prediction_masks(train):
-    PATH_Images="./predicted_masks/images"
+    PATH_Images="./datasets/dataset/valid/images"
     PATH_Masks="./predicted_masks/masks"
     
     list_img=[img for img in os.listdir(PATH_Images) if img.endswith('.jpg')==True]
@@ -160,7 +160,8 @@ def save_prediction_masks(train):
             # Resize the image
         # print(img)
         H, W,_ = img.shape
-        results = model(img,imgsz=[640],  iou=0.01,conf=0.01,augment=True )
+        # conf_threshold=0.0001, iou_threshold=0.5
+        results = model(img,  iou=0.5,conf=0.0001, verbose=False )
         # high_res = model.predict(img, imgsz=1280, conf=0.2)
         # low_res = model.predict(img, imgsz=320, conf=0.15)
         # results= high_res+low_res;
