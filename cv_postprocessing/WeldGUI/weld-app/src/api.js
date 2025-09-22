@@ -39,3 +39,4 @@ export const fetchSymptoms = () => {
 export const fetchInsuranceCompanies = () => {
     return axios.get(`${API_BASE_URL}/getInsuranceCompanies`);
 };
+//comment
