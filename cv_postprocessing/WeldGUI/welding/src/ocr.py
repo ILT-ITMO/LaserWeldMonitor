@@ -226,6 +226,7 @@ def get_pixel_real_size(
 
     # search on full image
     res_ocr = reader.ocr(image)[0]
+    print(f"DEBUG: Full image OCR results: {res_ocr}")  # ADD THIS LINE
     # res_ocr = reader.readtext(image)
     val_units_text, pred_id = match_units_text(res_ocr)
 
