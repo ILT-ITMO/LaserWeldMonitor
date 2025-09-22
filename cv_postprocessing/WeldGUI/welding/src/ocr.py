@@ -199,18 +199,19 @@ def find_long_colored_line(image: np.ndarray, bbox: tuple[float, float, float, f
 
     return w, (pt1, pt2)
 def match_units_text(res_ocr):
-    """Match units text from EasyOCR results."""
+    """Match units text from PaddleOCR results."""
     val_unit_text = None
-    pred_index = None  # ← INITIALIZE WITH DEFAULT VALUE
+    pred_index = None  
     
     if res_ocr:
-        for i, (bbox, text, confidence) in enumerate(res_ocr):
+        for i, (bbox, (text, confidence)) in enumerate(res_ocr):  # <- FIX
             text_clean = text.replace(" ", "")
             if re.match(r"\d+\s*(mm|nm|m|cm|μm)", text_clean):
                 val_unit_text = text_clean
                 pred_index = i
                 break
     return val_unit_text, pred_index
+
 def get_pixel_real_size(
     reader, image
 ) -> tuple[list[float, float], str]:
@@ -224,8 +225,8 @@ def get_pixel_real_size(
     """
 
     # search on full image
-    # res_ocr = reader.ocr(image)[0]
-    res_ocr = reader.readtext(image)
+    res_ocr = reader.ocr(image)[0]
+    # res_ocr = reader.readtext(image)
     val_units_text, pred_id = match_units_text(res_ocr)
 
     if val_units_text:
@@ -236,8 +237,8 @@ def get_pixel_real_size(
     else:  # search on crops
         crops = crop_four(image)
         for i, crop in enumerate(crops):
-            res_ocr = reader.readtext(crop)
-            # res_ocr = reader.ocr(crop)[0]
+            # res_ocr = reader.readtext(crop)
+            res_ocr = reader.ocr(crop)[0]
             val_units_text, pred_id = match_units_text(res_ocr)
             if val_units_text:
                 value, unit = re.findall("[a-z]+|[0-9]+", val_units_text)
