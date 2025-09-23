@@ -115,9 +115,18 @@ def get_scale_params():
         img = cv2.imread(file_path)
         
         # LAZY INITIALIZATION - only when needed
+        print("got ocr")
+        max_dim = 1024
+        h, w = img.shape[:2]
+        scale = max_dim / max(h, w)
+        if scale < 1:
+            img = cv2.resize(img, (int(w*scale), int(h*scale)))
+        print(f"DEBUG: resized image shape: {img.shape}")
+
+        
         ocr = get_ocr()
         le, u, line = get_pixel_real_size(ocr, img)
-        
+        print(le, "le")
         # Convert line points to serializable format
         if line is not None:
             line = [tuple(map(float, point)) for point in line]
