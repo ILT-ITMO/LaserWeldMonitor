@@ -223,6 +223,7 @@ def get_pixel_real_size(
     Returns:
         tuple[float, str]: Real size of pixel side and its units.
     """
+    print(f"DEBUG: image type={type(image)}, shape={getattr(image, 'shape', None)}, dtype={getattr(image, 'dtype', None)}")
 
     # search on full image
     res_ocr = reader.ocr(image)[0]
