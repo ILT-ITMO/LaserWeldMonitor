@@ -3,9 +3,10 @@ title: Laser Weld Monitor
 emoji: 🔥
 colorFrom: blue
 colorTo: red
-sdk: gradio
-sdk_version: "4.0.0"
+sdk: docker  
 app_file: app.py
+env:
+  PYTHONPATH: cv_postprocessing/WeldGUI
 pinned: false
 ---
 
