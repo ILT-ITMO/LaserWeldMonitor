@@ -3,10 +3,8 @@ title: Laser Weld Monitor
 emoji: 🔥
 colorFrom: blue
 colorTo: red
-sdk: docker  
+sdk: static  
 app_file: app.py
-env:
-  PYTHONPATH: cv_postprocessing/WeldGUI
 pinned: false
 ---
 
