@@ -1,12 +1,12 @@
-from typing import Tuple, Literal, Union, Dict
+from typing import Tuple, Literal, Union, Dict, List
 import json
 import pandas as pd
 import numpy as np
 import cv2
-import re
 
 
-QUALITY_THRESHOLDS = [0.15, 0.3, 0.65, 0.65, 0.3, 0.3, 0]
+# QUALITY_THRESHOLDS = [0.15, 0.3, 0.65, 0.65, 0.3, 0.3, 0]
+QUALITY_THRESHOLDS = [0, 0, 0, 0, 0, 0, 0]
 
 QUALITY = {
     "thermogram_1.npy": 
@@ -244,68 +244,12 @@ QUALITY = {
     ],
     }
 
-LABELS = {
-    "thermogram_7.npy": 
-    [0, 0, 1, 0],
-    "thermogram_8.npy":
-    [0, 0, 0, 0],
-    "thermogram_9.npy":
-    [0, 0, 0, 0],
-    "thermogram_10.npy":
-    [0, 0, 0, 0],
-    "thermogram_11.npy":
-    [0, 1, 0, 0],
-    "thermogram_12.npy":
-    [0, 0, 0, 0],
-    "thermogram_13.npy":
-    [1, 0, 0, 0],
-    "thermogram_14.npy":
-    [1, 1, 0, 1],
-    "thermogram_16.npy":
-    [0, 0, 0, 1],
-    "thermogram_17.npy":
-    [1, 1, 1, 1],
-    "thermogram_18.npy":
-    [1, 1, 0, 0],
-    "thermogram_19.npy":
-    [1, 1, 1, 1],
-    "thermogram_20.npy":
-    [1, 1, 1, 1],
-    "thermogram_21.npy":
-    [0, 0, 0, 0],
-    "thermogram_22.npy":
-    [0, 0, 0, 0],
-    "thermogram_23.npy":
-    [0, 0, 0, 1],
-    "thermogram_24.npy":
-    [0, 0, 1, 0],
-    "thermogram_25.npy":
-    [0, 0, 0, 0],
-    "thermogram_26.npy":
-    [1, 1, 1, 1],
-    "thermogram_27.npy":
-    [1, 1, 1, 1],
-    "thermogram_30.npy":
-    [0, 0, 0, 0],
-    "thermogram_31.npy":
-    [0, 0, 0, 0],
-    "thermogram_32.npy":
-    [0, 0, 0, 0],
-    "thermogram_33.npy":
-    [0, 0, 0, 0],
-    "thermogram_34.npy":
-    [0, 0, 0, 0],
-    }
-
-
 
 def prepare_dataset(path: str, class_id: str = 'hi', 
                     type: Literal['reduced', 'lstm'] = 'reduced',
                     clf: bool = True) -> Tuple[Union[pd.DataFrame, np.ndarray], Union[pd.Series, np.ndarray]]:
     with open(path, 'r') as f:
         data = json.load(f)
-
-    
 
     names = ['velocity', 'size', 'temp', 'cooling_speed', 'appearance_rate', 'n_spatters', 'welding_zone_temp']
     new_names = ['total_spatters']
@@ -328,14 +272,6 @@ def prepare_dataset(path: str, class_id: str = 'hi',
                 if zone in metric:
                     out[key][zone].append(value[metric])  # add features values to thermogram: section
 
-    # print(out.keys())
-    # print(out['thermogram_21.npy'].keys())
-    # f = np.array(out['thermogram_21.npy']['A'])
-    # print(f.shape)
-    # f = f.transpose(1, 2, 0)
-    # print(f.shape)
-    # print(f[1])
-
     if type == 'lstm':
         for key in out.keys():  
             for i, zone in enumerate(out[key].keys()):
@@ -348,10 +284,6 @@ def prepare_dataset(path: str, class_id: str = 'hi',
             for i, zone in enumerate(out[key].keys()):
                 for h in QUALITY[key][i]:
                     out[key][zone].append([h, ] * len(out[key][zone][0]))
-
-    # print(out.keys())
-    # print(out['thermogram_21.npy'].keys())
-    # print(np.array(out['thermogram_21.npy']['A']))
 
     ds = []
     if type == 'lstm':
@@ -388,6 +320,113 @@ def prepare_dataset(path: str, class_id: str = 'hi',
         return df, is_defect
     
     else:
+        defect_id = defect_names.index(class_id)
+        if clf:
+            is_defect =  (ds[:, :, 8 + defect_id] > QUALITY_THRESHOLDS[defect_id]) * 1
+        else:
+            is_defect =  ds[:, :, 8 + defect_id]
+        ds = ds[:, :, :8]
+
+        return ds, is_defect
+    
+
+def prepare_dataset_from_video_split(path: str, train_videos: List[str], val_videos: List[str],
+                                     class_id: str = 'hi', type: Literal['reduced', 'lstm'] = 'reduced',
+                    clf: bool = True) -> Tuple[Union[pd.DataFrame, np.ndarray], Union[pd.Series, np.ndarray],
+                                               Union[pd.Series, np.ndarray], Union[pd.Series, np.ndarray]]:
+    
+    with open(path, 'r') as f:
+        data = json.load(f)
+
+    names = ['velocity', 'size', 'temp', 'cooling_speed', 'appearance_rate', 'n_spatters', 'welding_zone_temp']
+    new_names = ['total_spatters']
+    if type == 'reduced':
+        for name in names:
+            new_names.append('mean_' + name)
+            new_names.append('max_' + name)
+            new_names.append('min_' + name)
+    else:
+        new_names.extend(names)
+
+    defect_names = ['hu', 'hg', 'he','hp', 'hs', 'hm', 'hi']
+    new_names.extend(defect_names)
+
+    out = {key: {'A': [], 'B': [], 'C': [], 'D': []} for key in data.keys()}
+
+    for key, value in data.items():  # iterate over thermograms
+        for zone in out[key].keys():  # iterate over sections
+            for metric in value.keys():  # iterate over feature in one thermogram
+                if zone in metric:
+                    out[key][zone].append(value[metric])  # add features values to thermogram: section
+
+    if type == 'lstm':
+        for key in out.keys():  
+            for i, zone in enumerate(out[key].keys()):
+                out[key][zone] = np.array(out[key][zone]).transpose(1, 2, 0)
+                for h in QUALITY[key][i]:
+                    out[key][zone] = np.concatenate((out[key][zone], h * np.ones((*out[key][zone].shape[:2], 1))), axis=-1
+                                                    )
+    else:
+        for key in out.keys():  
+            for i, zone in enumerate(out[key].keys()):
+                for h in QUALITY[key][i]:
+                    out[key][zone].append([h, ] * len(out[key][zone][0]))
+
+    train_ds, val_ds = [], []
+    if type == 'lstm':
+        raise NotImplementedError
+        for value in out.values():
+            for d in value.values():
+                ds.append(d)
+        ds = np.concatenate(ds)
+    else:
+        for vid, value in out.items():
+            for d in value.values():
+                for s in np.array(d).T.tolist():
+                    if vid in train_videos:
+                        train_ds.append(s)
+                    elif vid in val_videos:
+                        val_ds.append(s)
+                    else:
+                        raise ValueError
+
+    if type == 'reduced':
+        train_df = pd.DataFrame(train_ds, columns=new_names)
+        val_df = pd.DataFrame(val_ds, columns=new_names)
+
+        if clf:
+            train_df.hu = train_df.hu > QUALITY_THRESHOLDS[0]
+            train_df.hg = train_df.hg > QUALITY_THRESHOLDS[1]
+            train_df.he = train_df.he > QUALITY_THRESHOLDS[2]
+            train_df.hp = train_df.hp > QUALITY_THRESHOLDS[3]
+            train_df.hs = train_df.hs > QUALITY_THRESHOLDS[4]
+            train_df.hm = train_df.hm > QUALITY_THRESHOLDS[5]
+            train_df.hi = train_df.hi > QUALITY_THRESHOLDS[6]
+            train_df = train_df * 1
+
+            val_df.hu = val_df.hu > QUALITY_THRESHOLDS[0]
+            val_df.hg = val_df.hg > QUALITY_THRESHOLDS[1]
+            val_df.he = val_df.he > QUALITY_THRESHOLDS[2]
+            val_df.hp = val_df.hp > QUALITY_THRESHOLDS[3]
+            val_df.hs = val_df.hs > QUALITY_THRESHOLDS[4]
+            val_df.hm = val_df.hm > QUALITY_THRESHOLDS[5]
+            val_df.hi = val_df.hi > QUALITY_THRESHOLDS[6]
+            val_df = val_df * 1
+
+        y_train = train_df[class_id]
+        train_df = train_df.drop(defect_names, axis=1)
+        train_df = train_df.drop([name for name in new_names if 'min' in name], axis=1)
+        train_df = train_df.drop([name for name in new_names if 'max' in name], axis=1)
+
+        y_val = val_df[class_id]
+        val_df = val_df.drop(defect_names, axis=1)
+        val_df = val_df.drop([name for name in new_names if 'min' in name], axis=1)
+        val_df = val_df.drop([name for name in new_names if 'max' in name], axis=1)
+
+        return train_df, y_train, val_df, y_val
+    
+    else:
+        raise NotImplementedError
         defect_id = defect_names.index(class_id)
         if clf:
             is_defect =  (ds[:, :, 8 + defect_id] > QUALITY_THRESHOLDS[defect_id]) * 1
