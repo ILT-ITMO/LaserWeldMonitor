@@ -1,5 +1,6 @@
-from flask import Flask, jsonify, request, send_file
-from flask_cors import CORS
+# from flask import Flask, jsonify, request, send_file
+# from flask_cors import CORS
+import gradio as gr
 import subprocess
 import os
 import uuid
@@ -20,8 +21,8 @@ import threading
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-app = Flask(__name__)
-CORS(app)
+# app = Flask(__name__)
+# CORS(app)
 
 UPLOAD_FOLDER = 'welding/examples/images'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -83,7 +84,7 @@ def get_ocr():
                 print("PaddleOCR initialized with automatic download!")
                 
         return ocr_instance
-@app.route('/api/debug/models', methods=['GET'])
+# @app.route('/api/debug/models', methods=['GET'])
 def debug_models():
     import os
     model_base = '/opt/render/.paddleocr'
@@ -96,24 +97,29 @@ def debug_models():
         relative_path = os.path.relpath(root, model_base)
         model_structure[relative_path] = files
     
-    return jsonify(model_structure)
-@app.route('/api/get_scale_params', methods=['POST'])
-def get_scale_params():
+    # return jsonify(model_structure)
+    return model_structure
+    
+# @app.route('/api/get_scale_params', methods=['POST'])
+def get_scale_params(file):
     try:
-        if 'image' not in request.files:
-            return jsonify({"error": "No image uploaded"}), 400
+        # if 'image' not in request.files:
+            # return jsonify({"error": "No image uploaded"}), 400
         
-        file = request.files['image']
-        if file.filename == '':
-            return jsonify({"error": "Empty filename"}), 400
+        # file = request.files['image']
+        # if file.filename == '':
+            # return jsonify({"error": "Empty filename"}), 400
         
-        original_filename = file.filename
+        original_filename = Path(file.name).name
         file_path = os.path.join(UPLOAD_FOLDER, original_filename)
-        file.save(file_path)
+        # file.save(file_path)
         
         # Read the image and get scale parameters
-        img = cv2.imread(file_path)
         
+        with open(file_path, "wb") as f:
+            f.write(file.read())
+
+        img = cv2.imread(file_path)
         # LAZY INITIALIZATION - only when needed
         print("got ocr")
         max_dim = 1024
@@ -131,39 +137,125 @@ def get_scale_params():
         if line is not None:
             line = [tuple(map(float, point)) for point in line]
         
-        return jsonify({
-            "filename": original_filename,
-            "scale_params": {
+        # return jsonify({
+        #     "filename": original_filename,
+        #     "scale_params": {
+        #         "le": float(le),
+        #         "unit": u,
+        #         "reference_line": line
+        #     }
+        # })
+        return {
+                "filename": original_filename,
+                "scale_params": {
                 "le": float(le),
                 "unit": u,
                 "reference_line": line
             }
-        })
-        
+        }
+
     except Exception as e:
         logger.error(f"Error in get_scale_params: {str(e)}\n{traceback.format_exc()}")
-        return jsonify({"error": "Internal server error", "details": str(e)}), 500
+        return {"error": "Internal server error", "details": str(e)}
+       
+# return jsonify({"error": "Internal server error", "details": str(e)}), 500
 
 # Add a simple health check to test if app starts
-@app.route('/api/health', methods=['GET'])
+# @app.route('/api/health', methods=['GET'])
 def health_check():
-    return jsonify({"status": "healthy", "message": "Flask app is running"})
+    return {"status": "healthy", "message": "Flask app is running"}
+    # return jsonify({"status": "healthy", "message": "Flask app is running"})
 
-@app.route('/api/process_image', methods=['POST'])
-def process_image():
-    try:
-        data = request.json
-        logger.info(f"Received request with data: {data}")
+# @app.route('/api/process_image', methods=['POST'])
+# def process_image(data):
+#     try:
+#         # data = request.json
+#         # logger.info(f"Received request with data: {data}")
         
+#         # Validate request data
+#         if not data or 'filename' not in data or 'scale_params' not in data:
+#             logger.error("Invalid request data")
+#             return jsonify({"error": "Invalid request data"}), 400
+#         print("sggg",data['filename'])
+#         file_path = os.path.normpath(os.path.join(UPLOAD_FOLDER, data['filename']))
+#         if not os.path.exists(file_path):
+#             logger.error(f"File not found: {file_path}")
+#             return jsonify({"error": "File not found"}), 404
+        
+#         # Prepare config
+#         config = {
+#             "image_path": file_path,
+#             "output_path": "welding/output",
+#             "middle_part_path": "welding/weights/main.pt",
+#             "plate_model_path": "welding/weights/plate.pt",
+#             "render": True,
+#             "scale_params": data['scale_params']
+#         }
+        
+#         config_path = os.path.join(UPLOAD_FOLDER, f"config_{data['filename']}.json")
+#         logger.info(f"Writing config to: {config_path}")
+        
+#         try:
+#             with open(config_path, 'w') as f:
+#                 json.dump(config, f)
+#         except Exception as e:
+#             logger.error(f"Failed to write config file: {str(e)}")
+#             return jsonify({"error": f"Failed to write config file: {str(e)}"}), 500
+   
+#         results = main(config_dict=config)
+#         # print(results)
+#         # Return results
+#         output_base = Path(data['filename']).stem
+#         rendered_path = Path("welding/output/rendered") / f"{output_base}.jpg"
+#         print(f"Absolute path being checked: {rendered_path.absolute()}")
+#         if not rendered_path.exists():
+#             logger.error(f"Rendered image not found at: {rendered_path}")
+#             return jsonify({
+#                 "error": "Processing completed but output image not found",
+#                 "details": f"Expected path: {rendered_path}"
+#             }), 500
+        
+#         logger.info("Successfully processed image")
+        
+#         response_data = {
+#             "success": True,
+#             "analysis_results": results,  # All your measurement data
+#             "image_reference": data['filename'],  # Same reference you received
+#             "scale_params": data['scale_params']  # Return the scale params back for verification
+#         }
+#         # print(response_data)
+#         return jsonify(response_data)
+#         # return send_file(str(Path("output/rendered") / f"{output_base}.jpg"), mimetype='image/jpeg')
+        
+#     except Exception as e:
+#         logger.error(f"Unexpected error: {str(e)}\n{traceback.format_exc()}")
+#         return jsonify({
+#             "error": "Internal server error",
+#             "details": str(e),
+#             "traceback": traceback.format_exc()
+#         }), 500
+#     finally:
+#         # Clean up in finally block to ensure it runs even if there's an error
+#         try:
+#             # if 'file_path' in locals() and os.path.exists(file_path):
+#             #     os.remove(file_path)
+#             if 'config_path' in locals() and os.path.exists(config_path):
+#                 os.remove(config_path)
+#         except Exception as e:
+#             logger.error(f"Cleanup failed: {str(e)}")
+# # @app.route('/api/process_bulk_images', methods=['POST'])
+def process_image(data: dict):
+    try:
         # Validate request data
         if not data or 'filename' not in data or 'scale_params' not in data:
             logger.error("Invalid request data")
-            return jsonify({"error": "Invalid request data"}), 400
-        print("sggg",data['filename'])
+            return {"error": "Invalid request data"}
+        
+        print("sggg", data['filename'])
         file_path = os.path.normpath(os.path.join(UPLOAD_FOLDER, data['filename']))
         if not os.path.exists(file_path):
             logger.error(f"File not found: {file_path}")
-            return jsonify({"error": "File not found"}), 404
+            return {"error": "File not found"}
         
         # Prepare config
         config = {
@@ -183,20 +275,20 @@ def process_image():
                 json.dump(config, f)
         except Exception as e:
             logger.error(f"Failed to write config file: {str(e)}")
-            return jsonify({"error": f"Failed to write config file: {str(e)}"}), 500
+            return {"error": f"Failed to write config file: {str(e)}"}
    
         results = main(config_dict=config)
-        # print(results)
+
         # Return results
         output_base = Path(data['filename']).stem
         rendered_path = Path("welding/output/rendered") / f"{output_base}.jpg"
         print(f"Absolute path being checked: {rendered_path.absolute()}")
         if not rendered_path.exists():
             logger.error(f"Rendered image not found at: {rendered_path}")
-            return jsonify({
+            return {
                 "error": "Processing completed but output image not found",
                 "details": f"Expected path: {rendered_path}"
-            }), 500
+            }
         
         logger.info("Successfully processed image")
         
@@ -206,33 +298,28 @@ def process_image():
             "image_reference": data['filename'],  # Same reference you received
             "scale_params": data['scale_params']  # Return the scale params back for verification
         }
-        # print(response_data)
-        return jsonify(response_data)
-        # return send_file(str(Path("output/rendered") / f"{output_base}.jpg"), mimetype='image/jpeg')
+        return response_data
         
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}\n{traceback.format_exc()}")
-        return jsonify({
+        return {
             "error": "Internal server error",
             "details": str(e),
             "traceback": traceback.format_exc()
-        }), 500
+        }
     finally:
-        # Clean up in finally block to ensure it runs even if there's an error
         try:
-            # if 'file_path' in locals() and os.path.exists(file_path):
-            #     os.remove(file_path)
             if 'config_path' in locals() and os.path.exists(config_path):
                 os.remove(config_path)
         except Exception as e:
             logger.error(f"Cleanup failed: {str(e)}")
-@app.route('/api/process_bulk_images', methods=['POST'])
-def process_bulk_images():
+
+def process_bulk_images(images, scale_params):
     try:
-        images = request.files.getlist('images')
+        # images = request.files.getlist('images')
     
     # Get scale params
-        scale_params = json.loads(request.form.get('scale_params'))
+        # scale_params = json.loads(request.form.get('scale_params'))
      
         # Prepare config (different from single image)
 
@@ -252,29 +339,38 @@ def process_bulk_images():
         shutil.rmtree(output_dir, ignore_errors=True)
         os.makedirs(UPLOAD_FOLDER, exist_ok=True)
         os.makedirs(output_dir, exist_ok=True)
-        images = request.files.getlist('images')
+        # images = request.files.getlist('images')
         if not images:
-            return jsonify({"error": "No images uploaded"}), 400
-
+            # return jsonify({"error": "No images uploaded"}), 400
+            return {"error": "No images uploaded"}
         # Save all uploaded images to UPLOAD_FOLDER
         saved_files = []
-        for img in images:
-            if img.filename == '':
+        # for img in images:
+        #     if img.filename == '':
+        #         continue
+        #     filename = img.filename
+        #     file_path = Path(UPLOAD_FOLDER) / filename
+        #     img.save(file_path)
+        #     saved_files.append(file_path)
+        for i, img in enumerate(images):
+            if img is None:
                 continue
-            filename = img.filename
+            filename = f"bulk_{i}_{uuid.uuid4().hex}.jpg"
             file_path = Path(UPLOAD_FOLDER) / filename
-            img.save(file_path)
+            with open(file_path, "wb") as f:
+                f.write(img.read())
             saved_files.append(file_path)
-
         if not saved_files:
-            return jsonify({"error": "No valid images provided"}), 400
+            # return jsonify({"error": "No valid images provided"}), 400
+            return {"error": "No valid images provided"}
 
         try:
             with open(config_path, 'w') as f:
                 json.dump(config, f)
         except Exception as e:
             logger.error(f"Failed to write bulk config file: {str(e)}")
-            return jsonify({"error": f"Failed to write config file: {str(e)}"}), 500
+            # return jsonify({"error": f"Failed to write config file: {str(e)}"}), 500
+            return {"error": f"Failed to write config file: {str(e)}"}
         
         # Run processing
         logger.info("Starting bulk subprocess...")
@@ -288,16 +384,23 @@ def process_bulk_images():
         }
         print(response_data)
         # print(response_data)
-        return jsonify(response_data)
-
+        # return jsonify(response_data)
+        return response_data
         
+    # except Exception as e:
+    #     logger.error(f"Unexpected error in bulk processing: {str(e)}\n{traceback.format_exc()}")
+    #     return jsonify({
+    #         "error": "Internal server error",
+    #         "details": str(e),
+    #         "traceback": traceback.format_exc()
+    #     }), 500
     except Exception as e:
         logger.error(f"Unexpected error in bulk processing: {str(e)}\n{traceback.format_exc()}")
-        return jsonify({
+        return {
             "error": "Internal server error",
             "details": str(e),
             "traceback": traceback.format_exc()
-        }), 500
+        }
     finally:
         # Cleanup
         try:
@@ -306,6 +409,11 @@ def process_bulk_images():
             # Don't delete the input folder, just cleanup config
         except Exception as e:
             logger.error(f"Bulk cleanup failed: {str(e)}")
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 7860))
-    app.run(host='0.0.0.0', port=port, debug=False)
+# if __name__ == '__main__':
+#     port = int(os.environ.get('PORT', 7860))
+#     app.run(host='0.0.0.0', port=port, debug=False)
+with gr.Blocks() as demo:
+    gr.File(label="Upload Image", type="file").change(get_scale_params)
+    # add more interface elements as needed
+
+demo.launch(server_name="0.0.0.0", server_port=7860)
