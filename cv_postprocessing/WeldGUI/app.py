@@ -5,7 +5,18 @@
 #     app.run(host="0.0.0.0", port=7860)
 # WeldGUI/app.py
 from welding.api import demo  # import the Gradio Blocks object
+import socket
 
+def find_free_port():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('', 0))
+        return s.getsockname()[1]
 if __name__ == "__main__":
     # Launch Gradio interface
-    demo.launch(server_name="0.0.0.0", server_port=7860)
+    try:
+        demo.launch(server_name="127.0.0.1", server_port=7861)
+    except Exception as e:
+        print(f"Failed on port 7860: {e}")
+        free_port = find_free_port()
+        print(f"Trying free port: {free_port}")
+        demo.launch(server_name="127.0.0.1", server_port=free_port)
