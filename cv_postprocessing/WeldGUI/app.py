@@ -14,9 +14,9 @@ def find_free_port():
 if __name__ == "__main__":
     # Launch Gradio interface
     try:
-        demo.launch(server_name="127.0.0.1", server_port=7861)
+        demo.launch(server_name="127.0.0.1", server_port=7860)
     except Exception as e:
         print(f"Failed on port 7860: {e}")
         free_port = find_free_port()
         print(f"Trying free port: {free_port}")
-        demo.launch(server_name="127.0.0.1", server_port=free_port)
+        demo.launch(server_name="0.0.0.0", server_port=free_port)
