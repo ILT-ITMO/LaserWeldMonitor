@@ -7,6 +7,7 @@ sdk: gradio
 sdk_version: 4.0.0
 app_file: cv_postprocessing/WeldGUI/app.py
 pinned: false
+python_version: "3.9"
 ---
 
 <p align="center"><h1 align="center">LASERWELDMONITOR</h1></p>
