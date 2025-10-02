@@ -1,0 +1,96 @@
+# Web Framework
+flask==3.1.1
+flask-cors==6.0.1
+werkzeug==3.1.3
+jinja2==3.1.4
+itsdangerous==2.2.0
+blinker==1.9.0
+gunicorn>=22.0
+# Data Processing
+numpy==1.26.4
+pandas==2.2.3
+
+# Computer Vision
+opencv-python-headless==4.11.0.86
+pillow==11.1.0
+pyclipper==1.3.0.post6
+shapely==2.0.7
+
+# Utilities & Networking
+requests==2.32.3
+urllib3==2.3.0
+httpx==0.28.1
+httpcore==1.0.7
+h11==0.14.0
+pyyaml==6.0.2
+tqdm==4.67.1
+psutil==6.1.1
+joblib==1.5.1
+
+# Data Formats & Serialization
+protobuf==3.20.2
+python-dateutil==2.9.0.post0
+pytz==2024.2
+tzdata==2025.1
+
+# Math & Scientific Computing
+mpmath==1.3.0
+sympy==1.13.3
+opt-einsum==3.3.0
+networkx==3.2.1
+
+# Security & Cryptography
+argon2-cffi==23.1.0
+argon2-cffi-bindings==21.2.0
+cffi==1.17.1
+pycparser==2.22
+
+# File Operations & Storage
+fsspec==2024.12.0
+lmdb==1.7.3
+tifffile==2024.8.30
+
+# Text Processing & NLP
+charset-normalizer==3.4.1
+idna==3.10
+rapidfuzz==3.13.0
+beautifulsoup4==4.12.3
+soupsieve==2.6
+
+# Async & Concurrency
+anyio==4.8.0
+sniffio==1.3.1
+
+# Configuration & Validation
+attrs==24.3.0
+pydantic-core==2.27.2
+jsonschema==4.23.0
+jsonschema-specifications==2024.10.1
+referencing==0.36.1
+rpds-py==0.22.3
+fastjsonschema==2.21.1
+
+# Core Python Utilities
+click==8.1.8
+colorama==0.4.6
+decorator==5.1.1
+exceptiongroup==1.2.2
+importlib-metadata==8.6.1
+importlib-resources==6.5.2
+packaging==24.2
+platformdirs==4.3.6
+pygments==2.19.1
+six==1.17.0
+termcolor==3.1.0
+typing_extensions==4.12.2
+zipp==3.21.0
+paddlepaddle==2.6.1 -f https://www.paddlepaddle.org.cn/whl/mkl/stable.html
+paddleocr==2.7.0.3
+# Machine Learning & Computer Vision (Python 3.9 Compatible Versions)
+torch==1.9.0
+torchvision==0.10.0
+torchaudio==0.9.0
+ultralytics==8.3.60
+scikit-learn==1.5
+gradio>=3.40
+opencv-python>=4.7
