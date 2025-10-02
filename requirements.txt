@@ -84,7 +84,8 @@ six==1.17.0
 termcolor==3.1.0
 typing_extensions==4.12.2
 zipp==3.21.0
-paddlepaddle==2.6.1 -f https://www.paddlepaddle.org.cn/whl/mkl/stable.html
+paddlepaddle==2.6.1 
+--finde-links https://www.paddlepaddle.org.cn/whl/mkl/stable.html
 paddleocr==2.7.0.3
 # Machine Learning & Computer Vision (Python 3.9 Compatible Versions)
 torch==1.9.0
