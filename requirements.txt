@@ -94,4 +94,5 @@ ultralytics==8.3.60
 scikit-learn==1.5
 gradio>=3.40
 opencv-python-headless==4.11.0.86
-opencv-python==4.6.0.66  # Change this line
+opencv-python==4.6.0.66 
+PyMuPDF==1.20.2
