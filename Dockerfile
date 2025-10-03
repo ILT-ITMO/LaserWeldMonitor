@@ -14,4 +14,4 @@ COPY . .
 
 # Hugging Face sets $PORT dynamically
 # Use gunicorn to serve the Flask app
-CMD ["sh", "-c", "gunicorn -b 0.0.0.0:${PORT} cv_postprocessing.WeldGUI.app:app"]
+CMD ["sh", "-c", "gunicorn -b 0.0.0.0:7860 cv_postprocessing.WeldGUI.app:app"]
