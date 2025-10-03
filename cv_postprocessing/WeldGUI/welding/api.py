@@ -97,7 +97,7 @@ def debug_models():
         model_structure[relative_path] = files
     
     return jsonify(model_structure)
-@app.route('/', methods=['POST'])
+@app.route('/api/get_scale_params', methods=['POST'])
 def get_scale_params():
     try:
         if 'image' not in request.files:
