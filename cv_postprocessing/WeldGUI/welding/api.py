@@ -307,5 +307,5 @@ def process_bulk_images():
         except Exception as e:
             logger.error(f"Bulk cleanup failed: {str(e)}")
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 7860))
     app.run(host='0.0.0.0', port=port, debug=False)
