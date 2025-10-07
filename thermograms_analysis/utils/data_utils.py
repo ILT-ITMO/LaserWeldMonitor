@@ -6,7 +6,7 @@ import cv2
 
 
 # QUALITY_THRESHOLDS = [0.15, 0.3, 0.65, 0.65, 0.3, 0.3, 0]
-QUALITY_THRESHOLDS = [0, 0, 0, 0, 0, 0, 0]
+QUALITY_THRESHOLDS = [0, 0, 0, 0, 0, 0, 0.45]
 
 QUALITY = {
     "thermogram_1.npy": 
@@ -154,12 +154,12 @@ QUALITY = {
     [0.000, 0.000, 0.480, 0.000, 0.000, 0.000, 1.926],
     [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 1.844],
     ],
-    "thermogram_27.npy":
-    [[0.000, 0.000, 0.000, 0.000, 0.088, 0.365, 1.334],
-    [0.000, 0.000, 0.000, 0.000, 0.122, 0.083, 0.582],
-    [0.000, 0.000, 0.000, 0.000, 0.091, 0.097, 0.561],
-    [0.000, 0.000, 0.000, 0.000, 0.072, 0.348, 0.750],
-    ],
+    # "thermogram_27.npy":
+    # [[0.000, 0.000, 0.000, 0.000, 0.088, 0.365, 1.334],
+    # [0.000, 0.000, 0.000, 0.000, 0.122, 0.083, 0.582],
+    # [0.000, 0.000, 0.000, 0.000, 0.091, 0.097, 0.561],
+    # [0.000, 0.000, 0.000, 0.000, 0.072, 0.348, 0.750],
+    # ],
     "thermogram_28.npy":
     [[0.000, 0.000, 0.000, 0.000, 0.140, 0.000, 0.350],
     [0.000, 0.000, 0.063, 0.000, 0.000, 0.048, 0.000],
@@ -551,3 +551,197 @@ def crop_thermogram(path: str, last_frame: int) -> None:
     np.save(path, frames)
     frames = np.load(path)
     print('Output shape after loading:', frames.shape)
+
+
+def prepare_no_tracker_data_from_split(json_path: str, val_videos: List[str], train_videos: List[str],
+                      window_size: int = 8, overlap_ratio: float = 0.2) -> Tuple[pd.DataFrame, pd.DataFrame]:
+
+    with open(json_path, 'r') as f:
+        json_data = json.load(f)
+
+    def trim_zeros_and_process(video_data: Dict) -> Dict:
+        """Пункт 1: Удаление нулей с краев welding_zone_temp"""
+        welding_temp = np.array(video_data['welding_zone_temp'])
+        
+        # Находим индексы ненулевых элементов
+        non_zero_indices = np.where(welding_temp != 0)[0]
+        
+        if len(non_zero_indices) == 0:
+            # Если все значения нулевые, возвращаем пустые массивы
+            return {key: np.array([]) for key in video_data.keys()}
+        
+        start_idx = non_zero_indices[0]
+        end_idx = non_zero_indices[-1] + 1
+        
+        # Обрезаем все массивы
+        trimmed_data = {}
+        for key, values in video_data.items():
+            trimmed_data[key] = np.array(values)[start_idx:end_idx]
+            
+        return trimmed_data
+    
+    def split_into_quarters(data: np.ndarray) -> List[np.ndarray]:
+        """Пункт 2: Разделение на 4 равные части"""
+        if len(data) == 0:
+            return [np.array([]) for _ in range(4)]
+        
+        part_length = len(data) // 4
+        parts = []
+        
+        for i in range(4):
+            start_idx = i * part_length
+            if i == 3:  # Последняя часть - все оставшиеся элементы
+                end_idx = len(data)
+            else:
+                end_idx = (i + 1) * part_length
+            parts.append(data[start_idx:end_idx])
+            
+        return parts
+    
+    def calculate_moving_stats(data: np.ndarray, window_size: int, step: int) -> Tuple[np.ndarray, np.ndarray]:
+        """Вычисление скользящего среднего и СКО с заданным шагом"""
+        if len(data) < window_size:
+            return np.array([]), np.array([]), np.array([]), np.array([]), np.array([])
+        
+        means = []
+        stds = []
+        medians = []
+        rms = []  # среднеквадратичное значение
+        slopes = []  # наклон тренда
+        
+        for i in range(0, len(data) - window_size + 1, step):
+            window = data[i:i + window_size]
+            
+            means.append(np.mean(window))
+            stds.append(np.std(window))
+            medians.append(np.median(window))
+            rms.append(np.sqrt(np.mean(window**2)))
+            
+            # Вычисляем наклон линейного тренда
+            x = np.arange(len(window))
+            slope = np.polyfit(x, window, 1)[0] if len(window) > 1 else 0
+            slopes.append(slope)
+            
+        return np.array(means), np.array(stds), np.array(medians), np.array(rms), np.array(slopes)
+    
+    def calculate_step_size(window_size: int, overlap_ratio: float) -> int:
+        """Вычисление шага для скользящего окна на основе доли пересечения"""
+        if overlap_ratio <= 0:
+            return window_size  # Без пересечения
+        elif overlap_ratio >= 1:
+            return 1  # Максимальное пересечение (шаг 1)
+        else:
+            # Вычисляем шаг: window_size * (1 - overlap_ratio)
+            step = int(window_size * (1 - overlap_ratio))
+            return max(1, step)  # Шаг не меньше 1
+        
+    def contains_zeros(window_data: np.ndarray) -> bool:
+        """Проверяет, содержит ли окно нулевые значения"""
+        return np.any(window_data == 0)
+    
+    processed_data = {}
+    
+    # Вычисляем шаг для окон
+    step_size = calculate_step_size(window_size, overlap_ratio)
+    
+    for video_name, video_data in json_data.items():
+        # 1. Удаляем нули с краев
+        trimmed_data = trim_zeros_and_process(video_data)
+        
+        if len(trimmed_data['welding_zone_temp']) == 0:
+            continue
+            
+        # 2. Разделяем на 4 части и получаем GT значения для каждой четверти
+        quarters_data = {}
+        
+        # Разделяем все признаки на четверти
+        for key in ['size', 'n_spatters', 'temp', 'welding_zone_temp']:
+            quarters = split_into_quarters(trimmed_data[key])
+            quarters_data[key] = quarters
+        
+        # Получаем GT значения для каждой четверти (предполагаем, что они уже есть в данных)
+        # Если GT передаются отдельно, нужно изменить эту часть
+        # gt_quarters = split_into_quarters(trimmed_data['welding_zone_temp'])
+        # quarter_gt_values = [np.mean(q) if len(q) > 0 else 0 for q in gt_quarters]
+        
+        # 3. Вычисляем скользящие статистики для каждой четверти
+        features = []
+        gt_for_features = []
+        
+        for quarter_idx in range(4):
+            # Получаем данные для текущей четверти
+            quarter_data_size = quarters_data['size'][quarter_idx]
+            quarter_data_spatters = quarters_data['n_spatters'][quarter_idx]
+            quarter_data_temp = quarters_data['temp'][quarter_idx]
+            quarter_data_welding = quarters_data['welding_zone_temp'][quarter_idx]
+            
+            # GT для всей этой четверти
+            quarter_gt = QUALITY[video_name][quarter_idx]
+            
+            if len(quarter_data_size) >= window_size:
+                size_means, size_stds, size_medians, size_rms, size_slopes = calculate_moving_stats(quarter_data_size, window_size, step_size)
+                spatter_means, spatter_stds, spatter_medians, spatter_rms, spatter_slopes = calculate_moving_stats(quarter_data_spatters, window_size, step_size)
+                temp_means, temp_stds, temp_medians, temp_rms, temp_slopes = calculate_moving_stats(quarter_data_temp, window_size, step_size)
+                welding_means, welding_stds, welding_medians, welding_rms, welding_slopes = calculate_moving_stats(quarter_data_welding, window_size, step_size)
+
+                # Для каждого окна создаем вектор признаков
+                for i in range(len(size_means)):
+                    window_features = {
+                        # Основные статистики (работали хорошо)
+                        'size_mean': size_means[i],
+                        'size_std': size_stds[i],
+                        'size_median': size_medians[i],
+                        'size_rms': size_rms[i],
+                        # 'size_slope': size_slopes[i],
+                        'n_spatters_mean': spatter_means[i],
+                        'n_spatters_std': spatter_stds[i],
+                        'n_spatters_median': spatter_medians[i],
+                        'n_spatters_rms': spatter_rms[i],
+                        # 'n_spatters_slope': spatter_slopes[i],
+                        'temp_mean': temp_means[i],
+                        'temp_std': temp_stds[i],
+                        'temp_median': temp_medians[i],
+                        'temp_rms': temp_rms[i],
+                        # 'temp_slope': temp_slopes[i],
+                        'welding_zone_temp_mean': welding_means[i],
+                        'welding_zone_temp_std': welding_stds[i],
+                        'welding_zone_temp_median': welding_medians[i],
+                        'welding_zone_temp_rms': welding_rms[i],
+                        # 'welding_zone_temp_slope': welding_slopes[i],
+                    }
+                    
+                    features.append(window_features)
+                    gt_for_features.append(quarter_gt)  # Всем окнам из этой четверти - одинаковый GT
+        
+        processed_data[video_name] = {
+            'features': features,
+            'gt': gt_for_features
+        }
+    
+    # 4. Создаем датасеты
+    def create_dataset(video_names: List[str]) -> pd.DataFrame:
+        """Создание датасета для списка видео"""
+        rows = []
+        
+        for video_name in video_names:
+            if video_name not in processed_data:
+                continue
+                
+            video_info = processed_data[video_name]
+            
+            # Создаем строки для каждого окна
+            for i, feature_set in enumerate(video_info['features']):
+                row = feature_set.copy()
+                gt = video_info['gt'][i]
+                for i, name in enumerate(('hu', 'hg', 'he','hp', 'hs', 'hm', 'hi')):
+                    row[name] = gt[i]  # GT для этого окна (одинаковый для всей четверти)
+                
+                rows.append(row)
+        
+        return pd.DataFrame(rows)
+    
+    # Создаем тренировочный и валидационный датасеты
+    train_df = create_dataset(train_videos)
+    val_df = create_dataset(val_videos)
+    
+    return train_df, val_df
