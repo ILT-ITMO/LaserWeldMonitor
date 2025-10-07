@@ -3,10 +3,12 @@ title: Laser Weld Monitor
 emoji: 🔥
 colorFrom: blue
 colorTo: red
-sdk: docker
+sdk: gradio
+sdk_version: 4.0.0
+app_file: cv_postprocessing/WeldGUI/app.py
 pinned: false
+python_version: "3.9"
 ---
-
 <p align="center"><h1 align="center">LASERWELDMONITOR</h1></p>
 <p align="center">
 	<a href="https://itmo.ru/"><img src="https://raw.githubusercontent.com/aimclub/open-source-ops/43bb283758b43d75ec1df0a6bb4ae3eb20066323/badges/ITMO_badge.svg"></a>
