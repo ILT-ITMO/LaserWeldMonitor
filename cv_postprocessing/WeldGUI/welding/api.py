@@ -303,6 +303,6 @@ with gr.Blocks() as demo:
 
 # Launch on a safe port
 try:
-    demo.launch(server_name="0.0.0.0", server_port=7860)
+    demo.launch(server_name="0.0.0.0", server_port=7860, strict_cors=False, share=True)
 except Exception as e:
     print(f"Launch failed: {e}")
