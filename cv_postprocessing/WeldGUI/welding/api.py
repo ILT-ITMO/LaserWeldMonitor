@@ -182,7 +182,7 @@ def process_image(data: dict):
 
         # Return results
         output_base = Path(data['filename']).stem
-        rendered_path = Path("welding/output/rendered") / f"{output_base}.jpg"
+        rendered_path = Path(BASE_DIR) / "output/rendered" / f"{output_base}.jpg"
         print(f"Absolute path being checked: {rendered_path.absolute()}")
         if not rendered_path.exists():
             logger.error(f"Rendered image not found at: {rendered_path}")
