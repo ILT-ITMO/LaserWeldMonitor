@@ -157,13 +157,13 @@ def process_image(data: dict):
         if not os.path.exists(file_path):
             logger.error(f"File not found: {file_path}")
             return {"error": "File not found"}
-        
+        BASE_DIR = "cv_postprocessing/WeldGUI/welding"
         # Prepare config
         config = {
             "image_path": file_path,
-            "output_path": "welding/output",
-            "middle_part_path": "welding/weights/main.pt",
-            "plate_model_path": "welding/weights/plate.pt",
+            "output_path": os.path.join(BASE_DIR, "output"),
+            "middle_part_path": os.path.join(BASE_DIR, "weights/main.pt"),
+            "plate_model_path": os.path.join(BASE_DIR, "weights/plate.pt"),
             "render": True,
             "scale_params": data['scale_params']
         }
