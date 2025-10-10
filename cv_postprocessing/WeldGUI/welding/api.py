@@ -39,7 +39,9 @@ def get_ocr():
         if ocr_instance is None:
             print("Initializing PaddleOCR from pre-downloaded models...")
             
-            model_base = os.path.join(os.getcwd(), 'modelss', 'paddleocr')
+            model_base = os.path.join(
+                'cv_postprocessing', 'WeldGUI', 'modelss', 'paddleocr'
+            )
             print(f"Looking for models at: {model_base}")
             
             try:
