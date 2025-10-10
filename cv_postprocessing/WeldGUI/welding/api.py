@@ -52,6 +52,8 @@ def get_ocr():
                 ]
                 
                 for model_dir in required_dirs:
+                    abs_model_dir = os.path.abspath(model_dir)
+                    print(f"DEBUG: Checking existence of: {abs_model_dir}")
                     if not os.path.exists(model_dir):
                         raise FileNotFoundError(f"Model directory not found: {model_dir}")
                     else:
