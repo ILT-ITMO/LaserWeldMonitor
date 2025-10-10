@@ -18,6 +18,10 @@ import zipfile
 import shutil
 from welding.predict import main
 import threading
+import os
+import shutil
+from pathlib import Path
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,9 +31,6 @@ logger = logging.getLogger(__name__)
 UPLOAD_FOLDER = 'welding/examples/images'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# REMOVE THIS: ocr = PaddleOCR(lang="en", use_angle_cls=False)
-
-# Add global variable but don't initialize yet
 ocr_instance = None
 ocr_lock = threading.Lock()
 def get_ocr():
@@ -38,12 +39,10 @@ def get_ocr():
         if ocr_instance is None:
             print("Initializing PaddleOCR from pre-downloaded models...")
             
-            # CORRECTED: Use the actual path from debug output
             model_base = os.path.join(os.getcwd(), 'modelss', 'paddleocr')
             print(f"Looking for models at: {model_base}")
             
             try:
-                # Check if models exist before initializing
                 required_dirs = [
                     os.path.join(model_base, 'en_PP-OCRv4_det_infer'),
                     os.path.join(model_base, 'en_PP-OCRv4_rec_infer'), 
@@ -57,7 +56,6 @@ def get_ocr():
                         print(f"✓ Found model: {model_dir}")
                         print(f"  Contents: {os.listdir(model_dir)}")
                 
-                # Initialize with explicit paths to pre-downloaded models
                 ocr_instance = PaddleOCR(
                     lang="en", 
                     use_angle_cls=False,
@@ -100,13 +98,21 @@ def debug_models():
 
 def get_scale_params(file):
     try:
-        original_filename = Path(file.name).name
+       
+        temp_file_path = file.name
+        
+        original_filename = Path(temp_file_path).name
         file_path = os.path.join(UPLOAD_FOLDER, original_filename)
         
-        with open(file_path, "wb") as f:
-            f.write(file.read())
+        shutil.copy(temp_file_path, file_path)
+        print(f"DEBUG: Copied file from {temp_file_path} to {file_path}")
+        # ---------------------------------------------
 
         img = cv2.imread(file_path)
+        
+        if img is None:
+            raise ValueError(f"OpenCV failed to read the image file at: {file_path}")
+            
         print("got ocr")
         max_dim = 1024
         h, w = img.shape[:2]
@@ -121,7 +127,7 @@ def get_scale_params(file):
 
         if line is not None:
             line = [tuple(map(float, point)) for point in line]
-        
+            
         return {
             "filename": original_filename,
             "scale_params": {
@@ -134,7 +140,6 @@ def get_scale_params(file):
     except Exception as e:
         logger.error(f"Error in get_scale_params: {str(e)}\n{traceback.format_exc()}")
         return {"error": "Internal server error", "details": str(e)}
-
 
 
 def health_check():
