@@ -183,8 +183,8 @@ def process_image(data: dict):
         except Exception as e:
             logger.error(f"Failed to write config file: {str(e)}")
             return {"error": f"Failed to write config file: {str(e)}"}
-   
-        results = main(config_dict=config)
+        get_ocr()
+        results = main(config_dict=config, ocr= ocr_instance)
 
         # Return results
         output_base = Path(data['filename']).stem
@@ -266,7 +266,8 @@ def process_bulk_images(images, scale_params):
         
         # Run processing
         logger.info("Starting bulk subprocess...")
-        results = main(config_dict=config)
+        get_ocr()
+        results = main(config_dict=config, ocr=ocr_instance)
 
         response_data = {
             "success": True,

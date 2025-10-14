@@ -218,7 +218,7 @@ def process_single_image(key, img, image_path, model1, model2, ocr, output_maske
         print(e)
         return None, None
 
-def process_all_images(config):
+def process_all_images(config, ocr):
 
     results = {
     "images": [],
@@ -226,7 +226,7 @@ def process_all_images(config):
          "csv_data": None 
         }
 
-    ocr = PaddleOCR(lang="en", use_angle_cls=False, show_log=False)
+    # ocr = PaddleOCR(lang="en", use_angle_cls=False, show_log=False)
 
     middle_part_path = pathlib.Path(config['middle_part_path']).resolve()
     plate_model_path = pathlib.Path(config['plate_model_path']).resolve()
@@ -336,7 +336,7 @@ def process_all_images(config):
         # "gosts": gosts_df.to_dict(orient='records')
     }
     return results
-def main(config_path=None, config_dict=None):
+def main(config_path=None, config_dict=None, ocr=None):
     """
     Main entry point that can be called either with:
     - config_path (str/pathlib.Path): Path to config file (CLI usage)
@@ -358,7 +358,7 @@ def main(config_path=None, config_dict=None):
         raise ValueError("Either config_path or config_dict must be provided")
 
     # Process the images and return results
-    results = process_all_images(config)
+    results = process_all_images(config, ocr)
     
     # Ensure process_all_images returns a dict that can be JSON-serialized
     return results
