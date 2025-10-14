@@ -55,10 +55,10 @@ def get_ocr():
                     abs_model_dir = os.path.abspath(model_dir)
                     print(f"DEBUG: Checking existence of: {abs_model_dir}")
                     if not os.path.exists(model_dir):
-                        raise FileNotFoundError(f"Model directory not found: {model_dir}")
+                        raise FileNotFoundError(f"Model directory not found: {abs_model_dir}")
                     else:
-                        print(f"✓ Found model: {model_dir}")
-                        print(f"  Contents: {os.listdir(model_dir)}")
+                        print(f"✓ Found model: {abs_model_dir}")
+                        print(f"  Contents: {os.listdir(abs_model_dir)}")
                 
                 ocr_instance = PaddleOCR(
                     lang="en", 
@@ -88,7 +88,9 @@ def get_ocr():
         return ocr_instance
 
 def debug_models():
-    model_base = '/opt/render/.paddleocr'
+    model_base = os.path.join(
+        'cv_postprocessing', 'WeldGUI', 'modelss', 'paddleocr'
+    )
     
     if not os.path.exists(model_base):
         return {'error': 'Model directory does not exist'}
@@ -304,7 +306,7 @@ ENDPOINTS = {
 # Create API endpoints using Blocks
 with gr.Blocks() as demo:
     gr.Markdown("### 🔧 Backend API Endpoints")
-    gr.Interface(fn=debug_models, inputs=[], outputs="json", title="debug_models")
+    gr.Interface(fn=debug_models, inputs=[], outputs="json", title="get_ocr")
     gr.Interface(fn=get_scale_params, inputs=gr.File(), outputs="json", title="get_scale_params")
     gr.Interface(fn=health_check, inputs=[], outputs="json", title="health_check")
     gr.Interface(fn=process_image, inputs=gr.JSON(), outputs="json", title="process_image")
