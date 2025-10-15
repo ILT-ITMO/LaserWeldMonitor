@@ -95,17 +95,12 @@ export default function MyDropzone() {
       setCurrentFileIndex(0);
     }
   };
-//  useEffect(() => {
-//     const img = new Image();
-//     img.src = dataURL;
-//
-//   }, [dataURL]);
-useEffect(() => {
-  console.log('dataURL changed:', dataURL);
-  if (dataURL === null) {
-    console.trace('dataURL set to null - check where this is happening');
-  }
-}, [dataURL]);
+ useEffect(() => {
+    const img = new Image();
+    img.src = dataURL;
+
+  }, [dataURL]);
+
 useEffect(() => {
   if (showMask && maskCanvasRef.current && analysisResults) {
     const canvas = maskCanvasRef.current;
@@ -175,11 +170,11 @@ useEffect(() => {
       drawReferenceLine();
     }
   }, [referencePoints, isEditing]);
-useEffect(() => {
-  if (canvasRef.current && imageDimensions.width > 0 && referencePoints[0].x !== 0) {
-    drawReferenceLine();
-  }
-}, [showScaleLine, referencePoints, isEditing, isProcessed]);
+// useEffect(() => {
+//   if (canvasRef.current && imageDimensions.width > 0 && referencePoints[0].x !== 0) {
+//     drawReferenceLine();
+//   }
+// }, [showScaleLine, referencePoints, isEditing, isProcessed]);
   const drawReferenceLine = () => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -187,7 +182,7 @@ useEffect(() => {
 
     const point1 = referencePoints[0];
     const point2 = referencePoints[1];
-    if (isProcessed && !showScaleLine) return;
+//     if (isProcessed && !showScaleLine) return;
     ctx.beginPath();
     ctx.moveTo(point1.x, point1.y);
     ctx.lineTo(point2.x, point2.y);
@@ -537,20 +532,151 @@ const downloadCsv = (data, filename) => {
   URL.revokeObjectURL(url);
 };
   const uploadImage = async () => {
-    const urls = [];
-    for (let file of acceptedFiles) {
-      const formData = new FormData();
-      const fileToUpload =
-        allFiles.length > 0 ? allFiles[currentFileIndex] : acceptedFiles[0];
-      formData.append("image", fileToUpload);
-      const res = await fetch(`https://laserweldmonitor.onrender.com/api/get_scale_params`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      urls.push(data);
+    const baseURL = "https://aveen007-laserweld.hf.space";
+    const apiEndpoint = "/call/predict_1";
+
+    const fileToUpload = allFiles[currentFileIndex] || acceptedFiles[0];
+
+    if (!fileToUpload) {
+      // alert is replaced with console log and an appropriate UI message if needed
+      console.error("Please select a file first.");
+      return;
     }
-    setUploadedURL(urls);
+
+    let uploadedPath = null;
+    let resultData = null;
+
+    // --- STEP 1: POST /upload (Upload File) ---
+    try {
+        const uploadFormData = new FormData();
+        uploadFormData.append("files", fileToUpload, fileToUpload.name);
+
+        const uploadResponse = await fetch(`${baseURL}/upload`, {
+            method: "POST",
+            body: uploadFormData,
+        });
+
+        if (!uploadResponse.ok) {
+            throw new Error(`Upload failed with status ${uploadResponse.status}: ${await uploadResponse.text()}`);
+        }
+
+        const uploadData = await uploadResponse.json();
+        uploadedPath = uploadData[0];
+        console.log("Uploaded Path:", uploadedPath);
+
+    } catch (error) {
+        console.error("Image upload failed:", error);
+        return;
+    }
+
+    // --- STEP 2: POST /call/predict_1 (Start Processing) ---
+    let eventId = null;
+    try {
+         const callBody = {
+                "data": [
+                    { "path": uploadedPath }
+                ]
+            };
+
+        const callResponse = await fetch(`${baseURL}${apiEndpoint}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(callBody),
+        });
+
+        if (!callResponse.ok) {
+            throw new Error(`Call start failed with status ${callResponse.status}`);
+        }
+
+        const callData = await callResponse.json();
+        eventId = callData.event_id;
+        console.log("Processing started, Event ID:", eventId);
+
+    } catch (error) {
+        console.error("Gradio API call failed (Start Predict):", error);
+        return;
+    }
+
+    // --- STEP 3: GET /call/predict_1/<event_id> (Poll for Result) ---
+    const pollInterval = 1000;
+
+
+   try {
+       // Log the event ID for context
+       console.log("Starting polling for Event ID:", eventId);
+
+
+           await new Promise(resolve => setTimeout(resolve, pollInterval));
+
+
+           const pollUrl = `${baseURL}${apiEndpoint}/${eventId}`;
+
+           const pollResponse = await fetch(pollUrl);
+
+           if (!pollResponse.ok) {
+               // Log the error response text if the status code is bad (4xx or 5xx)
+               const errorText = await pollResponse.text();
+               console.error(`HTTP Polling Error: Status ${pollResponse.status}. Server response:`, errorText);
+               throw new Error(`Polling failed with status ${pollResponse.status}`);
+           }
+
+           let pollData;
+           let responseText;
+           try {
+
+                      responseText = await pollResponse.text();
+
+
+                      const dataMatch = responseText.match(/data: (.*)/s);
+
+                      if (dataMatch && dataMatch[1]) {
+                          const jsonString = dataMatch[1].trim();
+                          pollData = JSON.parse(jsonString);
+                      } else {
+
+                          if (responseText.includes('status')) {
+                              pollData = JSON.parse(responseText);
+                          } else {
+                              pollData = { data: null, status: { status: 'waiting', stage: 'unknown' } };
+                          }
+                      }
+
+                  } catch (jsonError) {
+                      console.error("Failed to parse JSON response during polling:", jsonError, "Raw text:", responseText);
+                      throw new Error("Invalid or unexpected server response.");
+                  }
+
+
+
+
+           console.log("Received poll data:", pollData);
+
+if (pollData && pollData.length > 0) {
+    // Gradio returned the direct result array (the structure you showed)
+    resultData = pollData;
+} else if (pollData.data) {
+    // Gradio returned a wrapped result (fallback for older or status results)
+    resultData = pollData.data;
+} else if (pollData.error) {
+    // Gradio sent a specific error message
+    throw new Error(`Gradio processing error: ${pollData.error}`);
+} else {
+    // If we received a status update but no final data on this single poll, fail quickly.
+    throw new Error("Processing result was not immediately available.");
+}
+
+       if (!resultData) {
+           throw new Error("Gradio processing timed out.");
+       }
+
+       console.log("Processing complete, final result data:", resultData);
+
+
+       setUploadedURL(resultData);
+
+   } catch (error) {
+       console.error("Gradio polling failed:", error);
+   }
   };
 // useEffect(() => {
 //   if (processingMode === "bulk" && bulkResults.length > 0 && bulkResults[currentBulkIndex]) {
@@ -603,7 +729,6 @@ const logNavigation = (direction, newIndex) => {
     width={imageDimensions.width}
     height={imageDimensions.height}
     style={{
-      position: "absolute",
       position: "absolute",
 
       width: "100%",

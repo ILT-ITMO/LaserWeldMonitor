@@ -120,12 +120,12 @@ def get_scale_params(file):
             raise ValueError(f"OpenCV failed to read the image file at: {file_path}")
             
         print("got ocr")
-        max_dim = 1024
-        h, w = img.shape[:2]
-        scale = max_dim / max(h, w)
-        if scale < 1:
-            img = cv2.resize(img, (int(w*scale), int(h*scale)))
-        print(f"DEBUG: resized image shape: {img.shape}")
+        # max_dim = 1024
+        # h, w = img.shape[:2]
+        # scale = max_dim / max(h, w)
+        # if scale < 1:
+        #     img = cv2.resize(img, (int(w*scale), int(h*scale)))
+        # print(f"DEBUG: resized image shape: {img.shape}")
 
         ocr = get_ocr()
         le, u, line = get_pixel_real_size(ocr, img)
