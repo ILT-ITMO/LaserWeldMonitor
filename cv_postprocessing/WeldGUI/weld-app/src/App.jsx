@@ -298,165 +298,187 @@ useEffect(() => {
     setShowLengthPopup(true);
   };
 
-  const extractImagesFromZip = useCallback(async (zipBlob) => {
-    try {
-      const zip = await JSZip.loadAsync(zipBlob);
-      const imageUrls = [];
-      const filePromises = [];
+const handleSaveLength = async () => {
+  try {
+    const point1 = referencePoints[0];
+    const point2 = referencePoints[1];
+    const dx = point2.x - point1.x;
+    const dy = point2.y - point1.y;
+    const pixelLength = Math.sqrt(dx * dx + dy * dy);
+    const newLe = parseFloat(lengthValue) / pixelLength;
 
-      zip.forEach((relativePath, file) => {
-        if (!file.dir) {
-          const lowerPath = relativePath.toLowerCase();
-          if (
-            lowerPath.endsWith(".jpg") ||
-            lowerPath.endsWith(".jpeg") ||
-            lowerPath.endsWith(".png")
-          ) {
-            filePromises.push(
-              file.async("blob").then((blob) => {
-                const url = URL.createObjectURL(blob);
-                imageUrls.push({
-                  url,
-                  name: relativePath.split("/").pop(),
-                });
-              })
-            );
-          }
-        }
+    const requestData = {
+      filename: uploadedURL[0].filename,
+      scale_params: {
+        le: newLe,
+        unit: unitValue,
+        reference_line: [
+          [referencePoints[0].x, referencePoints[0].y],
+          [referencePoints[1].x, referencePoints[1].y],
+        ],
+      },
+    };
+
+    if (processingMode === "bulk") {
+      // ... your existing bulk code ...
+    } else {
+      // REPLACE THIS PART with Gradio predict_3 call
+      const baseURL = "https://aveen007-laserweld.hf.space";
+      const apiEndpoint = "/call/predict_3";
+
+      // --- STEP 1: POST /upload (Upload File) ---
+      const fileToUpload = allFiles[currentFileIndex] || acceptedFiles[0];
+      let uploadedPath = null;
+
+      const uploadFormData = new FormData();
+      uploadFormData.append("files", fileToUpload, fileToUpload.name);
+
+      const uploadResponse = await fetch(`${baseURL}/upload`, {
+        method: "POST",
+        body: uploadFormData,
       });
 
-      await Promise.all(filePromises);
-      return imageUrls;
-    } catch (error) {
-      console.error("Error extracting ZIP:", error);
-      throw error;
-    }
-  }, []);
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed with status ${uploadResponse.status}`);
+      }
 
-  const handleSaveLength = async () => {
-    try {
-      const point1 = referencePoints[0];
-      const point2 = referencePoints[1];
-      const dx = point2.x - point1.x;
-      const dy = point2.y - point1.y;
-      const pixelLength = Math.sqrt(dx * dx + dy * dy);
-      const newLe = parseFloat(lengthValue) / pixelLength;
+      const uploadData = await uploadResponse.json();
+      uploadedPath = uploadData[0];
+      console.log("Uploaded Path:", uploadedPath);
 
-      const requestData = {
-        filename: uploadedURL[0].filename,
-        scale_params: {
-          le: newLe,
-          unit: unitValue,
-          reference_line: [
-            [referencePoints[0].x, referencePoints[0].y],
-            [referencePoints[1].x, referencePoints[1].y],
-          ],
-        },
+      // --- STEP 2: POST /call/predict_3 (Start Processing) ---
+      const callBody = {
+        "data": [requestData] // This contains the updated scale params
       };
 
-      if (processingMode === "bulk") {
-        const formData = new FormData();
-        allFiles.forEach((file) => formData.append("images", file));
+      console.log("Sending updated scale params to predict_3:", callBody);
 
-        formData.append(
-          "scale_params",
-          JSON.stringify({
-            le: newLe,
-            unit: unitValue,
-            reference_line: [
-              [referencePoints[0].x, referencePoints[0].y],
-              [referencePoints[1].x, referencePoints[1].y],
-            ],
-          })
-        );
+      const callResponse = await fetch(`${baseURL}${apiEndpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(callBody),
+      });
 
-        const response = await fetch("https://laserweldmonitor.onrender.com/api/process_bulk_images", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (response.ok) {
-
-
-          const responseContentType = response.headers.get("content-type");
-          const data = await response.json(); // Parse the JSON response
-          console.log(data);
-            if (data.analysis_results.csv_data) {
-                              setCsvData(data.analysis_results.csv_data);
-                            }
-                        console.log(csvData);
-                        console.log(data.analysis_results.csv_data);
-          const resultsWithUrls = data.analysis_results.images.map((result, index) => ({
-                    ...result,
-                    originalUrl: URL.createObjectURL(allFiles[index])
-                  }));
-
-          setBulkResults(resultsWithUrls);
-          setCurrentBulkIndex(0);
-          setAnalysisResults({
-                 ...data.analysis_results,
-                 images: resultsWithUrls
-               });
-
-               // Show first image immediately
-          setDataURL(resultsWithUrls[0].originalUrl);
-
-          setAnalysisResults(data.analysis_results);
-
-          setShowLengthPopup(false);
-          setIsEditing(false);
-          setIsProcessed(true);
-          setCurrentBulkIndex(0);
-        }
-
-
-      } else {
-        const response = await fetch("https://laserweldmonitor.onrender.com/api/process_image", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestData),
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to update scale parameters");
-        }
-
-        const contentType = response.headers.get("content-type");
-//         console.log("Content-Type:", contentType);
-
-        if (contentType && contentType.includes("application/json")) {
-          const data = await response.json();
-         if (data.analysis_results.csv_data) {
-                                        setCsvData(data.analysis_results.csv_data);
-                                      }
-
-          setAnalysisResults(data.analysis_results); // Store the analysis results
-          setShowLengthPopup(false);
-          setIsEditing(false);
-          setIsProcessed(true);
-        } else if (contentType && contentType.includes("image")) {
-          const blob = await response.blob();
-          const imageUrl = URL.createObjectURL(blob);
-//           setDataURL(imageUrl);
-          setShowLengthPopup(false);
-          setIsEditing(false);
-          setIsProcessed(true);
-        } else {
-          const text = await response.text();
-          console.warn("Unexpected response:", text);
-          throw new Error("Server did not return expected response");
-        }
-
-        if (processingMode === "one-by-one") {
-          setTimeout(goToNextFile, 1000);
-        }
+      if (!callResponse.ok) {
+        throw new Error(`Call start failed with status ${callResponse.status}`);
       }
-    } catch (error) {
-      console.error("Error updating scale parameters:", error);
+
+      const callData = await callResponse.json();
+      const eventId = callData.event_id;
+      console.log("Processing started with updated scale params, Event ID:", eventId);
+
+      // --- STEP 3: GET /call/predict_3/<event_id> (Poll for Result) ---
+      const pollInterval = 1000;
+      let resultData = null;
+
+      try {
+        // Log the event ID for context
+        console.log("Starting polling for Event ID:", eventId);
+
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+
+        const pollUrl = `${baseURL}${apiEndpoint}/${eventId}`;
+        const pollResponse = await fetch(pollUrl);
+
+        if (!pollResponse.ok) {
+          const errorText = await pollResponse.text();
+          console.error(`HTTP Polling Error: Status ${pollResponse.status}. Server response:`, errorText);
+          throw new Error(`Polling failed with status ${pollResponse.status}`);
+        }
+
+        let pollData;
+        let responseText;
+        try {
+          responseText = await pollResponse.text();
+          const dataMatch = responseText.match(/data: (.*)/s);
+
+          if (dataMatch && dataMatch[1]) {
+            const jsonString = dataMatch[1].trim();
+            pollData = JSON.parse(jsonString);
+          } else {
+            if (responseText.includes('status')) {
+              pollData = JSON.parse(responseText);
+            } else {
+              pollData = { data: null, status: { status: 'waiting', stage: 'unknown' } };
+            }
+          }
+        } catch (jsonError) {
+          console.error("Failed to parse JSON response during polling:", jsonError, "Raw text:", responseText);
+          throw new Error("Invalid or unexpected server response.");
+        }
+
+        console.log("Received poll data:", pollData);
+
+        if (pollData && pollData.length > 0) {
+          // Gradio returned the direct result array (the structure you showed)
+          resultData = pollData;
+        } else if (pollData.data) {
+          // Gradio returned a wrapped result (fallback for older or status results)
+          resultData = pollData.data;
+        } else if (pollData.error) {
+          // Gradio sent a specific error message
+          throw new Error(`Gradio processing error: ${pollData.error}`);
+        } else {
+          // If we received a status update but no final data on this single poll, fail quickly.
+          throw new Error("Processing result was not immediately available.");
+        }
+
+        if (!resultData) {
+          throw new Error("Gradio processing timed out.");
+        }
+
+        console.log("Processing complete, final result data:", resultData);
+
+        // Transform the response to match the old format
+        console.log("- Is array?", Array.isArray(resultData));
+        let analysisResultsData = resultData;
+
+        // Transform the new format to old format
+        if (Array.isArray(resultData) && resultData.length > 0) {
+          const firstResult = resultData[0];
+
+          if (firstResult.analysis_results) {
+            // Create the exact same structure as the old format
+            analysisResultsData = {
+              images: firstResult.analysis_results.images || [],
+              summary: firstResult.analysis_results.summary || null,
+              csv_data: firstResult.analysis_results.csv_data || null
+            };
+            console.log("analysisResults:", analysisResultsData);
+
+            // Update csvData separately
+            if (firstResult.analysis_results.csv_data) {
+              setCsvData(firstResult.analysis_results.csv_data);
+            }
+
+            console.log("Transformed to old format:", analysisResultsData);
+          }
+        }
+
+        // Set the analysis results with the transformed data
+        if (analysisResultsData) {
+          setAnalysisResults(analysisResultsData);
+          setShowLengthPopup(false);
+          setIsEditing(false);
+          setIsProcessed(true);
+          console.log("Analysis results set successfully");
+        } else {
+          console.warn("No valid analysis results data");
+        }
+
+      } catch (error) {
+        console.error("Gradio polling failed:", error);
+      }
+
+      // Move to next file if in one-by-one mode
+      if (processingMode === "one-by-one") {
+        setTimeout(goToNextFile, 1000);
+      }
     }
-  };
+  } catch (error) {
+    console.error("Error updating scale parameters:", error);
+  }
+};
 const downloadCsv = (data, filename) => {
   if (!data || data.length === 0) return;
 
