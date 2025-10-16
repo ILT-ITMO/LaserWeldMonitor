@@ -221,41 +221,67 @@ def process_image(data: dict):
         except Exception as e:
             logger.error(f"Cleanup failed: {str(e)}")
 
-
-def process_bulk_images(images, scale_params):
+def process_bulk_images(images_data):
     try:
         output_dir = Path("welding/output/rendered")
         config_path = os.path.join(UPLOAD_FOLDER, f"bulk_config_{int(time.time())}.json")
-        config = {
-            "image_path": UPLOAD_FOLDER,  # Changed from image_path
-            "output_path": "welding/output",
-            "middle_part_path": "welding/weights/main.pt",
-            "plate_model_path": "welding/weights/plate.pt",
-            "render": True,
-            "scale_params": scale_params,
-            "bulk_process": True  # New flag for bulk processing
-        }
-
+        
+        # Create directories and clean up
         shutil.rmtree(UPLOAD_FOLDER, ignore_errors=True)
         shutil.rmtree(output_dir, ignore_errors=True)
         os.makedirs(UPLOAD_FOLDER, exist_ok=True)
         os.makedirs(output_dir, exist_ok=True)
 
-        if not images:
-            return {"error": "No images uploaded"}
+        if not images_data or "data" not in images_data or not images_data["data"]:
+            return {"error": "No images data provided"}
 
         saved_files = []
-        for i, img in enumerate(images):
-            if img is None:
+        individual_scale_params = {}
+        
+        for i, item in enumerate(images_data["data"]):
+            if "path" not in item or "scale_params" not in item:
+                logger.warning(f"Skipping invalid item at index {i}: missing 'path' or 'scale_params'")
                 continue
-            filename = f"bulk_{i}_{uuid.uuid4().hex}.jpg"
-            file_path = Path(UPLOAD_FOLDER) / filename
-            with open(file_path, "wb") as f:
-                f.write(img.read())
-            saved_files.append(file_path)
+                
+            source_path = item["path"]
+            scale_params = item["scale_params"]
+            
+            # Extract filename from path or use the provided filename
+            filename = item.get("filename") or os.path.basename(source_path)
+            
+            # Copy image from temp location to upload folder
+            try:
+                destination_path = Path(UPLOAD_FOLDER) / filename
+                
+                # Ensure the source file exists
+                if not os.path.exists(source_path):
+                    logger.warning(f"Source file not found: {source_path}")
+                    continue
+                
+                # Copy the file
+                shutil.copy2(source_path, destination_path)
+                saved_files.append(str(destination_path))
+                individual_scale_params[filename] = scale_params
+                
+                logger.info(f"Copied {source_path} to {destination_path}")
+                
+            except Exception as e:
+                logger.error(f"Failed to copy image {source_path}: {str(e)}")
+                continue
 
         if not saved_files:
-            return {"error": "No valid images provided"}
+            return {"error": "No valid images processed"}
+
+        # Create config with individual scale params
+        config = {
+            "image_path": UPLOAD_FOLDER,
+            "output_path": "welding/output",
+            "middle_part_path": "welding/weights/main.pt",
+            "plate_model_path": "welding/weights/plate.pt",
+            "render": True,
+            "scale_params": individual_scale_params,  # filename -> scale_params mapping
+            "bulk_process": True
+        }
 
         try:
             with open(config_path, 'w') as f:
@@ -272,7 +298,8 @@ def process_bulk_images(images, scale_params):
         response_data = {
             "success": True,
             "analysis_results": results,
-            "scale_params": scale_params
+            "scale_params": individual_scale_params,
+            "processed_files": saved_files
         }
 
         print(response_data)
@@ -291,7 +318,6 @@ def process_bulk_images(images, scale_params):
                 os.remove(config_path)
         except Exception as e:
             logger.error(f"Bulk cleanup failed: {str(e)}")
-
 
 
 # Dictionary of your functions
