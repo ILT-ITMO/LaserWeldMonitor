@@ -144,6 +144,7 @@ useEffect(() => {
   }, [dataURL]);
 
   useEffect(() => {
+        console.log(uploadedURL);
     if (uploadedURL && canvasRef.current && imageDimensions.width > 0) {
       const scaleParams = uploadedURL[0].scale_params;
       const newPoints = [
@@ -169,7 +170,7 @@ useEffect(() => {
     if (canvasRef.current && imageDimensions.width > 0 && referencePoints[0].x !== 0) {
       drawReferenceLine();
     }
-  }, [referencePoints, isEditing]);
+  }, [referencePoints, isEditing, showScaleLine, isProcessed, imageDimensions]);
 // useEffect(() => {
 //   if (canvasRef.current && imageDimensions.width > 0 && referencePoints[0].x !== 0) {
 //     drawReferenceLine();
@@ -458,6 +459,7 @@ const handleSaveLength = async () => {
         // Set the analysis results with the transformed data
         if (analysisResultsData) {
           setAnalysisResults(analysisResultsData);
+          setUploadedURL(resultData);
           setShowLengthPopup(false);
           setIsEditing(false);
           setIsProcessed(true);
