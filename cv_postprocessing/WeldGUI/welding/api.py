@@ -245,7 +245,7 @@ def process_bulk_images(data):
 
         saved_files = []
         individual_scale_params = {}
-
+        print(data)
         # 🔹 Process each image entry
         for i, item in enumerate(data):
             if "path" not in item or "scale_params" not in item:
