@@ -221,71 +221,46 @@ def process_image(data: dict):
         except Exception as e:
             logger.error(f"Cleanup failed: {str(e)}")
 
-import os
-import shutil
-import time
-import json
-import traceback
-from pathlib import Path
 
-def process_bulk_images(data):
+def process_bulk_images(images, scale_params):
     try:
-
-        if not data:
-            return {"error": "No images data provided"}
-
         output_dir = Path("welding/output/rendered")
         config_path = os.path.join(UPLOAD_FOLDER, f"bulk_config_{int(time.time())}.json")
+        config = {
+            "image_path": UPLOAD_FOLDER,  # Changed from image_path
+            "output_path": "welding/output",
+            "middle_part_path": "welding/weights/main.pt",
+            "plate_model_path": "welding/weights/plate.pt",
+            "render": True,
+            "scale_params": scale_params,
+            "bulk_process": True  # New flag for bulk processing
+        }
 
-        # 🔹 Clean up and recreate directories
         shutil.rmtree(UPLOAD_FOLDER, ignore_errors=True)
         shutil.rmtree(output_dir, ignore_errors=True)
         os.makedirs(UPLOAD_FOLDER, exist_ok=True)
         os.makedirs(output_dir, exist_ok=True)
 
+        if not images:
+            return {"error": "No images uploaded"}
+
         saved_files = []
-        individual_scale_params = {}
-        print(data)
-        # 🔹 Process each image entry
-        for i, item in enumerate(data):
-            if "path" not in item or "scale_params" not in item:
-                logger.warning(f"Skipping invalid item at index {i}: missing 'path' or 'scale_params'")
+        for i, img in enumerate(images):
+            if img is None:
                 continue
-
-            source_path = item["path"]
-            scale_params = item["scale_params"]
-            filename = item.get("filename") or os.path.basename(source_path)
-
-            try:
-                destination_path = Path(UPLOAD_FOLDER) / filename
-
-                if not os.path.exists(source_path):
-                    logger.warning(f"Source file not found: {source_path}")
-                    continue
-
-                shutil.copy2(source_path, destination_path)
-                saved_files.append(str(destination_path))
-                individual_scale_params[filename] = scale_params
-
-                logger.info(f"Copied {source_path} to {destination_path}")
-
-            except Exception as e:
-                logger.error(f"Failed to copy image {source_path}: {str(e)}")
-                continue
+            # filename = f"bulk_{i}_{uuid.uuid4().hex}.jpg"
+            temp_file_path = img.name
+            filename = Path(temp_file_path).name
+            file_path = Path(UPLOAD_FOLDER) / filename
+        
+        
+            shutil.copy(temp_file_path, file_path)
+            # with open(file_path, "wb") as f:
+            #     f.write(img.read())
+            saved_files.append(file_path)
 
         if not saved_files:
-            return {"error": "No valid images processed"}
-
-        # 🔹 Build config JSON
-        config = {
-            "image_path": UPLOAD_FOLDER,
-            "output_path": "welding/output",
-            "middle_part_path": "welding/weights/main.pt",
-            "plate_model_path": "welding/weights/plate.pt",
-            "render": True,
-            "scale_params": individual_scale_params,
-            "bulk_process": True
-        }
+            return {"error": "No valid images provided"}
 
         try:
             with open(config_path, 'w') as f:
@@ -293,20 +268,19 @@ def process_bulk_images(data):
         except Exception as e:
             logger.error(f"Failed to write bulk config file: {str(e)}")
             return {"error": f"Failed to write config file: {str(e)}"}
-
-        # 🔹 Run main processing
+        
+        # Run processing
         logger.info("Starting bulk subprocess...")
-        ocr_instance = get_ocr()
+        get_ocr()
         results = main(config_dict=config, ocr=ocr_instance)
 
-        # 🔹 Prepare and return response
         response_data = {
             "success": True,
             "analysis_results": results,
-            "scale_params": individual_scale_params,
-            "processed_files": saved_files
+            "scale_params": scale_params
         }
 
+        print(response_data)
         return response_data
 
     except Exception as e:
@@ -316,13 +290,14 @@ def process_bulk_images(data):
             "details": str(e),
             "traceback": traceback.format_exc()
         }
-
     finally:
         try:
             if 'config_path' in locals() and os.path.exists(config_path):
                 os.remove(config_path)
         except Exception as e:
             logger.error(f"Bulk cleanup failed: {str(e)}")
+
+
 
 # Dictionary of your functions
 ENDPOINTS = {
@@ -341,7 +316,7 @@ with gr.Blocks() as demo:
     gr.Interface(fn=get_scale_params, inputs=gr.File(), outputs="json", title="get_scale_params")
     gr.Interface(fn=health_check, inputs=[], outputs="json", title="health_check")
     gr.Interface(fn=process_image, inputs=gr.JSON(), outputs="json", title="process_image")
-    gr.Interface(fn=process_bulk_images, inputs=gr.JSON(), outputs="json", title="process_bulk_images")
+    gr.Interface(fn=process_bulk_images, inputs=[gr.File(file_count="multiple"), gr.JSON()], outputs="json", title="process_bulk_images")
 
 # Launch on a safe port
 try:
