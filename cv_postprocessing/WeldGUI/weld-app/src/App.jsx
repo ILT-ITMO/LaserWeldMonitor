@@ -14,6 +14,7 @@ export default function MyDropzone() {
   const [lengthValue, setLengthValue] = useState("");
   const [unitValue, setUnitValue] = useState("");
   const [blobUrl, setBlobUrl] = useState(null);
+  const [uploadedPaths, setUploadedPaths] = useState([]);
   const [referencePoints, setReferencePoints] = useState([
     { x: 0, y: 0 },
     { x: 0, y: 0 },
@@ -83,6 +84,7 @@ export default function MyDropzone() {
       reader.readAsDataURL(allFiles[nextIndex]);
 
       setUploadedURL(null);
+
       setIsEditing(false);
       setIsProcessed(false);
       setShowLengthPopup(false);
@@ -320,62 +322,135 @@ const handleSaveLength = async () => {
       },
     };
 
-    if (processingMode === "bulk") {
-     const formData = new FormData();
-         allFiles.forEach((file) => formData.append("images", file));
+   if (processingMode === "bulk") {
+     const baseURL = "https://aveen007-laserweld.hf.space";
+     const apiEndpoint = "/call/predict_4";
 
-         formData.append(
-           "scale_params",
-           JSON.stringify({
-             le: newLe,
-             unit: unitValue,
-             reference_line: [
-               [referencePoints[0].x, referencePoints[0].y],
-               [referencePoints[1].x, referencePoints[1].y],
-             ],
-           })
-         );
+     try {
+      const pathObjects = uploadedPaths.map(path => ({
+               path: path
+             }));
 
-         const response = await fetch("https://laserweldmonitor.onrender.com/api/process_bulk_images", {
-           method: "POST",
-           body: formData,
-         });
+             console.log("Transformed paths:", pathObjects);
 
-         if (response.ok) {
+             // Step 2: Call predict_4 with all paths and scale params
+             const callBody = {
+               "data": [
+                 pathObjects, // Now this is properly formatted as [{path: "...}, {path: "..."}]
+                 {
+                   "le": newLe,
+                   "unit": unitValue,
+                   "reference_line": [
+                     [referencePoints[0].x, referencePoints[0].y],
+                     [referencePoints[1].x, referencePoints[1].y],
+                   ]
+                 }
+               ]
+             };
 
+             console.log("Sending bulk processing request:", JSON.stringify(callBody, null, 2))
 
-           const responseContentType = response.headers.get("content-type");
-           const data = await response.json(); // Parse the JSON response
-           console.log(data);
-             if (data.analysis_results.csv_data) {
-                               setCsvData(data.analysis_results.csv_data);
-                             }
-                         console.log(csvData);
-                         console.log(data.analysis_results.csv_data);
-           const resultsWithUrls = data.analysis_results.images.map((result, index) => ({
-                     ...result,
-                     originalUrl: URL.createObjectURL(allFiles[index])
-                   }));
+       const callResponse = await fetch(`${baseURL}${apiEndpoint}`, {
+         method: "POST",
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify(callBody),
+       });
 
-           setBulkResults(resultsWithUrls);
-           setCurrentBulkIndex(0);
-           setAnalysisResults({
-                  ...data.analysis_results,
-                  images: resultsWithUrls
-                });
+       if (!callResponse.ok) {
+         throw new Error(`Bulk processing failed with status ${callResponse.status}`);
+       }
 
-                // Show first image immediately
-           setDataURL(resultsWithUrls[0].originalUrl);
+       const callData = await callResponse.json();
+       const eventId = callData.event_id;
+       console.log("Bulk processing started, Event ID:", eventId);
 
-           setAnalysisResults(data.analysis_results);
+       // Step 3: Poll for results
+       const pollInterval = 1000;
+       let resultData = null;
 
-           setShowLengthPopup(false);
-           setIsEditing(false);
-           setIsProcessed(true);
-           setCurrentBulkIndex(0);
+       await new Promise(resolve => setTimeout(resolve, pollInterval));
+
+       const pollUrl = `${baseURL}${apiEndpoint}/${eventId}`;
+       const pollResponse = await fetch(pollUrl);
+
+       if (!pollResponse.ok) {
+         throw new Error(`Polling failed with status ${pollResponse.status}`);
+       }
+
+       let pollData;
+       const responseText = await pollResponse.text();
+
+       try {
+         const dataMatch = responseText.match(/data: (.*)/s);
+         if (dataMatch && dataMatch[1]) {
+           const jsonString = dataMatch[1].trim();
+           pollData = JSON.parse(jsonString);
+         } else {
+           if (responseText.includes('status')) {
+             pollData = JSON.parse(responseText);
+           } else {
+             pollData = { data: null, status: { status: 'waiting', stage: 'unknown' } };
+           }
+         }
+       } catch (jsonError) {
+         console.error("Failed to parse JSON response during polling:", jsonError, "Raw text:", responseText);
+         throw new Error("Invalid or unexpected server response.");
+       }
+
+       console.log("Received bulk poll data:", pollData);
+
+       // Extract the analysis results from the response
+       if (pollData && pollData.length > 0) {
+         resultData = pollData[0]; // Get the first result
+       } else if (pollData.data) {
+         resultData = pollData.data[0];
+       } else {
+         throw new Error("No valid result data received");
+       }
+
+       // Process the results
+       if (resultData && resultData.analysis_results) {
+         console.log("Bulk processing complete:", resultData);
+
+         // Create results with original URLs for display
+         const resultsWithUrls = resultData.analysis_results.images.map((result, index) => ({
+           ...result,
+           originalUrl: URL.createObjectURL(allFiles[index])
+         }));
+
+         setBulkResults(resultsWithUrls);
+         setCurrentBulkIndex(0);
+
+         // Set analysis results with the transformed structure
+         const transformedResults = {
+           images: resultsWithUrls,
+           summary: resultData.analysis_results.summary || null,
+           csv_data: resultData.analysis_results.csv_data || null
+         };
+
+         setAnalysisResults(transformedResults);
+
+         // Update CSV data if available
+         if (resultData.analysis_results.csv_data) {
+           setCsvData(resultData.analysis_results.csv_data);
          }
 
-    } else {
+         // Show first image
+         setDataURL(resultsWithUrls[0].originalUrl);
+
+         setShowLengthPopup(false);
+         setIsEditing(false);
+         setIsProcessed(true);
+
+         console.log("Bulk analysis results set successfully");
+       } else {
+         console.warn("No valid analysis results in bulk response");
+       }
+
+     } catch (error) {
+       console.error("Error in bulk processing:", error);
+     }
+   } else {
       // REPLACE THIS PART with Gradio predict_3 call
       const baseURL = "https://aveen007-laserweld.hf.space";
       const apiEndpoint = "/call/predict_3";
@@ -645,7 +720,7 @@ const uploadImage = async () => {
       const uploadData = await uploadResponse.json();
       uploadedPath = uploadData[0]; // Get the first (and only) path
       console.log(`Uploaded Path for ${file.name}:`, uploadedPath);
-
+      uploadedPaths.push(uploadedPath);
       // --- STEP 2: POST /call/predict_1 (Start Processing for single file) ---
       const callBody = {
         "data": [{ "path": uploadedPath }]
@@ -726,6 +801,7 @@ const uploadImage = async () => {
   // Set all collected results
   if (urls.length > 0) {
     setUploadedURL(urls);
+    setUploadedPaths(uploadedPaths);
     console.log(`Successfully processed ${urls.length} files:`, urls);
 
     // If we have multiple files, show the first one
