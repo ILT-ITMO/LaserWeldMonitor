@@ -251,10 +251,12 @@ def process_bulk_images(images, scale_params):
         for i, img in enumerate(images):
             if img is None:
                 continue
-            filename = f"bulk_{i}_{uuid.uuid4().hex}.jpg"
-            file_path = Path(UPLOAD_FOLDER) / filename
-            with open(file_path, "wb") as f:
-                f.write(img.read())
+            temp_file_path = img.name
+        
+            filename = Path(temp_file_path).name
+            file_path = os.path.join(UPLOAD_FOLDER, filename)
+            
+            shutil.copy(temp_file_path, file_path)
             saved_files.append(file_path)
 
         if not saved_files:
