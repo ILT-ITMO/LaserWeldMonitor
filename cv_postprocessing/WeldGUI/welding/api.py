@@ -230,9 +230,6 @@ from pathlib import Path
 
 def process_bulk_images(data):
     try:
-        # ✅ Expecting data to be a LIST of items, not a dict
-        if not isinstance(data, list):
-            return {"error": "Invalid input — expected a list of image objects"}
 
         if not data:
             return {"error": "No images data provided"}
