@@ -224,16 +224,19 @@ def process_image(data: dict):
 
 def process_bulk_images(images, scale_params):
     try:
-        output_dir = Path("welding/output/rendered")
+        BASE_DIR = "cv_postprocessing/WeldGUI/welding" # <--- Add this
+        
+        output_dir = Path(BASE_DIR) / "output/rendered" # <--- Use BASE_DIR here
         config_path = os.path.join(UPLOAD_FOLDER, f"bulk_config_{int(time.time())}.json")
+        
         config = {
-            "image_path": UPLOAD_FOLDER,  # Changed from image_path
-            "output_path": "welding/output",
-            "middle_part_path": "welding/weights/main.pt",
-            "plate_model_path": "welding/weights/plate.pt",
+            "image_path": UPLOAD_FOLDER,
+            "output_path": os.path.join(BASE_DIR, "output"), # <--- Use BASE_DIR
+            "middle_part_path": os.path.join(BASE_DIR, "weights/main.pt"), # <--- Corrected
+            "plate_model_path": os.path.join(BASE_DIR, "weights/plate.pt"), # <--- Corrected
             "render": True,
             "scale_params": scale_params,
-            "bulk_process": True  # New flag for bulk processing
+            "bulk_process": True
         }
 
         shutil.rmtree(UPLOAD_FOLDER, ignore_errors=True)
@@ -248,15 +251,10 @@ def process_bulk_images(images, scale_params):
         for i, img in enumerate(images):
             if img is None:
                 continue
-            # filename = f"bulk_{i}_{uuid.uuid4().hex}.jpg"
-            temp_file_path = img.name
-            filename = Path(temp_file_path).name
+            filename = f"bulk_{i}_{uuid.uuid4().hex}.jpg"
             file_path = Path(UPLOAD_FOLDER) / filename
-        
-        
-            shutil.copy(temp_file_path, file_path)
-            # with open(file_path, "wb") as f:
-            #     f.write(img.read())
+            with open(file_path, "wb") as f:
+                f.write(img.read())
             saved_files.append(file_path)
 
         if not saved_files:
