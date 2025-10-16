@@ -337,7 +337,7 @@ with gr.Blocks() as demo:
     gr.Interface(fn=get_scale_params, inputs=gr.File(), outputs="json", title="get_scale_params")
     gr.Interface(fn=health_check, inputs=[], outputs="json", title="health_check")
     gr.Interface(fn=process_image, inputs=gr.JSON(), outputs="json", title="process_image")
-    gr.Interface(fn=process_bulk_images, inputs=[gr.File(file_count="multiple"), gr.JSON()], outputs="json", title="process_bulk_images")
+    gr.Interface(fn=process_bulk_images, inputs=gr.JSON(), outputs="json", title="process_bulk_images")
 
 # Launch on a safe port
 try:
