@@ -232,12 +232,17 @@ def process_bulk_images(images_data):
         os.makedirs(UPLOAD_FOLDER, exist_ok=True)
         os.makedirs(output_dir, exist_ok=True)
 
+        print("-" * 50)
+        print(f"Received images_data type: {type(images_data)}")
+        print(f"Received images_data value: {images_data}")
+        print("-" * 50)
         if not images_data or "data" not in images_data or not images_data["data"]:
             return {"error": "No images data provided"}
 
         saved_files = []
         individual_scale_params = {}
         
+     
         for i, item in enumerate(images_data["data"]):
             if "path" not in item or "scale_params" not in item:
                 logger.warning(f"Skipping invalid item at index {i}: missing 'path' or 'scale_params'")
